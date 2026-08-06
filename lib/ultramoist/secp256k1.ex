@@ -3,6 +3,8 @@ defmodule Ultramoist.Secp256k1 do
 
   @curve_order 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
   @field_prime 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+  @generator_x 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+  @generator_y 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
 
   def sign(priv_key, digest) do
     der = :crypto.sign(:ecdsa, :sha256, {:digest, digest}, [priv_key, :secp256k1])
@@ -25,14 +27,14 @@ defmodule Ultramoist.Secp256k1 do
   end
 
   def point_add({x1, y1}, {x1, y1}) do
-    slope = Integer.mod(3 * x1 * x1 * mod_inv(2 * y1), @field_prime)
+    slope = Integer.mod(3 * x1 * x1 * mod_inv(2 * y1, @field_prime), @field_prime)
     x3 = Integer.mod(slope * slope - 2 * x1, @field_prime)
     y3 = Integer.mod(slope * (x1 - x3) - y1, @field_prime)
     {x3, y3}
   end
 
   def point_add({x1, y1}, {x2, y2}) do
-    slope = Integer.mod((y2 - y1) * mod_inv(x2 - x1), @field_prime)
+    slope = Integer.mod((y2 - y1) * mod_inv(x2 - x1, @field_prime), @field_prime)
     x3 = Integer.mod(slope * slope - x1 - x2, @field_prime)
     y3 = Integer.mod(slope * (x1 - x3) - y1, @field_prime)
     {x3, y3}
@@ -47,10 +49,31 @@ defmodule Ultramoist.Secp256k1 do
     end)
   end
 
-  defp mod_inv(a) do
+  def recovery_id(r, s, digest, pub_key) do
+    r_int = :binary.decode_unsigned(r)
+    s_int = :binary.decode_unsigned(s)
+    e = :binary.decode_unsigned(digest)
+
+    y_squared = Integer.mod(r_int * r_int * r_int + 7, @field_prime)
+    y = mod_sqrt(y_squared)
+
+    r_inv = mod_inv(r_int, @curve_order)
+    u1 = Integer.mod(-e * r_inv, @curve_order)
+    u2 = Integer.mod(s_int * r_inv, @curve_order)
+    generator = {@generator_x, @generator_y}
+
+    Enum.find(0..1, fn candidate ->
+      candidate_y = if Integer.mod(y, 2) == candidate, do: y, else: @field_prime - y
+      ephemeral_point = {r_int, candidate_y}
+
+      point_add(scalar_mult(generator, u1), scalar_mult(ephemeral_point, u2)) == pub_key
+    end)
+  end
+
+  defp mod_inv(a, m) do
     a
-    |> Integer.mod(@field_prime)
-    |> :crypto.mod_pow(@field_prime - 2, @field_prime)
+    |> Integer.mod(m)
+    |> :crypto.mod_pow(m - 2, m)
     |> :binary.decode_unsigned()
   end
 end

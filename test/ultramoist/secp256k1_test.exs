@@ -78,4 +78,22 @@ defmodule Ultramoist.Secp256k1Test do
 
     assert Ultramoist.Secp256k1.scalar_mult(g, priv_key_int) == {expected_x, expected_y}
   end
+
+  # @spec SIGN-DATA-003
+  test "derives the recovery id matching the known public key" do
+    r =
+      Base.decode16!("5F7D1F5B3FF94191A0CC021647495206C89041BD1C4570B85C15B16083FFC91A",
+        case: :mixed
+      )
+
+    s =
+      Base.decode16!("08D14E48DE83D395A237A1C0575E4D06898D2AF9149FFDA129CB2BDAEBDB1B54",
+        case: :mixed
+      )
+
+    {pub_key, _priv} = :crypto.generate_key(:ecdh, :secp256k1, @priv_key)
+    <<4, pub_x::256, pub_y::256>> = pub_key
+
+    assert Ultramoist.Secp256k1.recovery_id(r, s, @digest, {pub_x, pub_y}) == 1
+  end
 end
