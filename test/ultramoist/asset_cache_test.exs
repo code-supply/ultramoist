@@ -1,5 +1,5 @@
 defmodule Ultramoist.AssetCacheTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   # @spec CACHE-DATA-001
   test "builds an index mapping coin name to position in the universe list" do
@@ -22,10 +22,8 @@ defmodule Ultramoist.AssetCacheTest do
 
   # @spec CACHE-API-001
   test "populates its index from the real testnet meta endpoint at startup" do
-    Application.put_env(:ultramoist, :chain, :testnet)
-    on_exit(fn -> Application.delete_env(:ultramoist, :chain) end)
-
-    {:ok, pid} = Ultramoist.AssetCache.start_link([])
+    {:ok, pid} =
+      Ultramoist.AssetCache.start_link(base_url: Ultramoist.Config.info_url(:testnet))
 
     assert {:ok, _asset_index} = Ultramoist.AssetCache.lookup(pid, "BTC")
   end
