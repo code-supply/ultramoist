@@ -25,4 +25,9 @@ defmodule Ultramoist.ConfigTest do
     Application.delete_env(:ultramoist, :chain)
     assert_raise ArgumentError, fn -> Ultramoist.Config.info_url() end
   end
+
+  test "resolves the info URL for an explicit chain, without touching global config" do
+    assert Ultramoist.Config.info_url(:testnet) == "https://api.hyperliquid-testnet.xyz"
+    assert Ultramoist.Config.info_url(:mainnet) == "https://api.hyperliquid.xyz"
+  end
 end

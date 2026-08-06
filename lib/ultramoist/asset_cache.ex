@@ -3,14 +3,19 @@ defmodule Ultramoist.AssetCache do
 
   use GenServer
 
-  def start_link(opts), do: GenServer.start_link(__MODULE__, [], opts)
+  def start_link(opts) do
+    {init_opts, gen_opts} = Keyword.split(opts, [:base_url])
+    GenServer.start_link(__MODULE__, init_opts, gen_opts)
+  end
 
   def lookup(pid, coin), do: GenServer.call(pid, {:lookup, coin})
 
   @impl true
-  def init([]) do
+  def init(init_opts) do
+    base_url = Keyword.get_lazy(init_opts, :base_url, &Ultramoist.Config.info_url/0)
+
     {:ok, %{"universe" => universe}} =
-      Ultramoist.Http.info_request(%{"type" => "meta"}, base_url: Ultramoist.Config.info_url())
+      Ultramoist.Http.info_request(%{"type" => "meta"}, base_url: base_url)
 
     {:ok, build_index(universe)}
   end
