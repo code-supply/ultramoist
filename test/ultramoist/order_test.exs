@@ -81,4 +81,34 @@ defmodule Ultramoist.OrderTest do
              plug: {Req.Test, Ultramoist.OrderTest}
            ) == {:ok, 99}
   end
+
+  # @spec ORD-API-002
+  test "returns a not-found error for an unknown coin without signing or submitting anything" do
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(base_url: Ultramoist.Config.info_url(:testnet))
+
+    assert Ultramoist.Order.place_limit(cache_pid, "NOTACOIN", true, "1.0", "0.001", []) ==
+             {:error, :not_found}
+  end
+
+  # @spec ORD-API-003
+  test "cancels an order: signs, submits, and returns confirmation" do
+    Req.Test.stub(Ultramoist.OrderTest, fn conn ->
+      Req.Test.json(conn, %{
+        "status" => "ok",
+        "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
+      })
+    end)
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Order.cancel(
+             asset_index: 0,
+             order_id: 99,
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             base_url: "https://api.hyperliquid-testnet.xyz",
+             plug: {Req.Test, Ultramoist.OrderTest}
+           ) == :ok
+  end
 end

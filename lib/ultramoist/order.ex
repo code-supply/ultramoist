@@ -40,33 +40,49 @@ defmodule Ultramoist.Order do
     with {:ok, asset_index} <- Ultramoist.AssetCache.lookup(cache_pid, coin) do
       action = build_place_action(asset_index, is_buy, limit_px, sz)
 
-      priv_key = Keyword.fetch!(opts, :priv_key)
-      source = Keyword.fetch!(opts, :source)
-      vault_address = Keyword.get(opts, :vault_address)
-      nonce = System.system_time(:millisecond)
-
-      {signature_r, signature_s, recovery_v} =
-        Ultramoist.Signer.sign_l1_action(action,
-          nonce: nonce,
-          source: source,
-          priv_key: priv_key,
-          vault_address: vault_address
-        )
-
-      signature = %{
-        "r" => "0x" <> Base.encode16(signature_r, case: :lower),
-        "s" => "0x" <> Base.encode16(signature_s, case: :lower),
-        "v" => recovery_v
-      }
-
-      http_opts =
-        opts
-        |> Keyword.drop([:priv_key, :source, :vault_address])
-        |> Keyword.merge(signature: signature, nonce: nonce, vault_address: vault_address)
-
-      with {:ok, response} <- Ultramoist.Http.exchange_request(action, http_opts) do
+      with {:ok, response} <- sign_and_submit(action, opts) do
         parse_place_response(response)
       end
     end
+  end
+
+  # @spec ORD-API-003
+  def cancel(opts) do
+    asset_index = Keyword.fetch!(opts, :asset_index)
+    order_id = Keyword.fetch!(opts, :order_id)
+    action = build_cancel_action(asset_index, order_id)
+    http_opts = Keyword.drop(opts, [:asset_index, :order_id])
+
+    with {:ok, response} <- sign_and_submit(action, http_opts) do
+      parse_cancel_response(response)
+    end
+  end
+
+  defp sign_and_submit(action, opts) do
+    priv_key = Keyword.fetch!(opts, :priv_key)
+    source = Keyword.fetch!(opts, :source)
+    vault_address = Keyword.get(opts, :vault_address)
+    nonce = System.system_time(:millisecond)
+
+    {signature_r, signature_s, recovery_v} =
+      Ultramoist.Signer.sign_l1_action(action,
+        nonce: nonce,
+        source: source,
+        priv_key: priv_key,
+        vault_address: vault_address
+      )
+
+    signature = %{
+      "r" => "0x" <> Base.encode16(signature_r, case: :lower),
+      "s" => "0x" <> Base.encode16(signature_s, case: :lower),
+      "v" => recovery_v
+    }
+
+    http_opts =
+      opts
+      |> Keyword.drop([:priv_key, :source, :vault_address])
+      |> Keyword.merge(signature: signature, nonce: nonce, vault_address: vault_address)
+
+    Ultramoist.Http.exchange_request(action, http_opts)
   end
 end
