@@ -2,6 +2,10 @@ defmodule Ultramoist.Secp256k1Test do
   use ExUnit.Case, async: true
 
   @curve_order 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+  @generator_y 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+  # The generator point's y^2 mod p (i.e. Gx^3 + 7 mod p), independently
+  # precomputed rather than derived by the formula under test.
+  @generator_y_squared 0x4866D6A5AB41AB2C6BCC57CCD3735DA5F16F80A548E5E20A44E4E9B8118C26F2
 
   @priv_key :crypto.hash(:sha256, "private key")
   @digest Ultramoist.Keccak.hash256("test")
@@ -31,5 +35,11 @@ defmodule Ultramoist.Secp256k1Test do
   test "leaves an already-low s value unchanged" do
     low_s = <<1::256>>
     assert Ultramoist.Secp256k1.normalize_s(low_s) == low_s
+  end
+
+  # @spec SIGN-DATA-003a
+  test "computes the modular square root of a quadratic residue" do
+    assert Ultramoist.Secp256k1.mod_sqrt(4) == 2
+    assert Ultramoist.Secp256k1.mod_sqrt(@generator_y_squared) == @generator_y
   end
 end
