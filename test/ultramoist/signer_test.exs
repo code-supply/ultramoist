@@ -31,6 +31,7 @@ defmodule Ultramoist.SignerTest do
 
     struct_hash =
       Ultramoist.Eip712.agent_struct_hash(Ultramoist.Signer.mainnet_source(), connection_id)
+
     digest = Ultramoist.Eip712.signing_digest(Ultramoist.Eip712.domain_separator(), struct_hash)
 
     assert :crypto.verify(:ecdsa, :sha256, {:digest, digest}, der, [pub_key, :secp256k1])
@@ -66,6 +67,7 @@ defmodule Ultramoist.SignerTest do
 
     struct_hash =
       Ultramoist.Eip712.agent_struct_hash(Ultramoist.Signer.mainnet_source(), connection_id)
+
     digest = Ultramoist.Eip712.signing_digest(Ultramoist.Eip712.domain_separator(), struct_hash)
 
     assert :crypto.verify(:ecdsa, :sha256, {:digest, digest}, der, [pub_key, :secp256k1])

@@ -4,8 +4,8 @@ defmodule Ultramoist.Eip712 do
   alias Ultramoist.Keccak
 
   @domain_type_hash Keccak.hash256(
-                       "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                     )
+                      "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                    )
   @name_hash Keccak.hash256("Exchange")
   @version_hash Keccak.hash256("1")
   @chain_id 1337

@@ -13,10 +13,18 @@ defmodule Ultramoist.Msgpack do
 
   def encode(value) do
     case value do
-      true -> <<@true_marker>>
-      false -> <<@false_marker>>
-      s when is_binary(s) -> <<@fixstr_marker + byte_size(s)>> <> s
-      n when is_integer(n) -> encode_integer(n)
+      true ->
+        <<@true_marker>>
+
+      false ->
+        <<@false_marker>>
+
+      s when is_binary(s) ->
+        <<@fixstr_marker + byte_size(s)>> <> s
+
+      n when is_integer(n) ->
+        encode_integer(n)
+
       list when is_list(list) ->
         if Keyword.keyword?(list), do: encode_list(list), else: encode_array(list)
     end
