@@ -38,6 +38,15 @@ defmodule Ultramoist.Secp256k1 do
     {x3, y3}
   end
 
+  def scalar_mult(point, k) when k > 0 do
+    [_leading_one | rest_bits] = Integer.digits(k, 2)
+
+    Enum.reduce(rest_bits, point, fn bit, acc ->
+      doubled = point_add(acc, acc)
+      if bit == 1, do: point_add(doubled, point), else: doubled
+    end)
+  end
+
   defp mod_inv(a) do
     a
     |> Integer.mod(@field_prime)

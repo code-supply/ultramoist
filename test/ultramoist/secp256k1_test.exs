@@ -65,4 +65,17 @@ defmodule Ultramoist.Secp256k1Test do
 
     assert Ultramoist.Secp256k1.point_add(g, g) == two_g
   end
+
+  # @spec SIGN-DATA-003c
+  test "multiplies the generator point by a scalar" do
+    g = {@generator_x, @generator_y}
+    three_g = {@triple_generator_x, @triple_generator_y}
+    assert Ultramoist.Secp256k1.scalar_mult(g, 3) == three_g
+
+    {pub_key, _priv} = :crypto.generate_key(:ecdh, :secp256k1, @priv_key)
+    <<4, expected_x::256, expected_y::256>> = pub_key
+    priv_key_int = :binary.decode_unsigned(@priv_key)
+
+    assert Ultramoist.Secp256k1.scalar_mult(g, priv_key_int) == {expected_x, expected_y}
+  end
 end
