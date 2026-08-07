@@ -22,18 +22,23 @@ defmodule Ultramoist.WebSocket do
     transport = Keyword.fetch!(opts, :transport)
     backoff_delay = Keyword.get(opts, :backoff_delay, &backoff_delay/1)
 
-    {:ok, conn} = transport.open(url, self())
+    state = %{
+      url: url,
+      transport: transport,
+      conn: nil,
+      status: :disconnected,
+      reconnect_attempts: 0,
+      backoff_delay: backoff_delay,
+      subscriptions: %{}
+    }
 
-    {:ok,
-     %{
-       url: url,
-       transport: transport,
-       conn: conn,
-       status: :disconnected,
-       reconnect_attempts: 0,
-       backoff_delay: backoff_delay,
-       subscriptions: %{}
-     }}
+    {:ok, state, {:continue, :connect}}
+  end
+
+  @impl true
+  def handle_continue(:connect, state) do
+    {:ok, conn} = state.transport.open(state.url, self())
+    {:noreply, %{state | conn: conn}}
   end
 
   @impl true

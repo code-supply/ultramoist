@@ -19,5 +19,14 @@ defmodule Ultramoist.Config do
     end
   end
 
+  def web_socket_url, do: web_socket_url(chain())
+
+  def web_socket_url(chain) do
+    case chain do
+      :mainnet -> "wss://api.hyperliquid.xyz/ws"
+      :testnet -> "wss://api.hyperliquid-testnet.xyz/ws"
+    end
+  end
+
   defp chain, do: Application.fetch_env!(:ultramoist, :chain)
 end

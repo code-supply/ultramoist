@@ -20,8 +20,8 @@ defmodule Ultramoist.WebSocketTest do
       %{test_pid: test_pid, auto_connect: auto_connect} =
         Agent.get_and_update(__MODULE__, fn s -> {s, %{s | conn: conn}} end)
 
-      send(test_pid, {:transport_opened, conn})
       if auto_connect, do: send(owner, {:ws, conn, :connected})
+      send(test_pid, {:transport_opened, conn})
 
       {:ok, conn}
     end
@@ -49,6 +49,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
+    assert_receive {:transport_opened, _conn}
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 

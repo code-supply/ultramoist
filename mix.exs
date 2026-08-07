@@ -23,7 +23,8 @@ defmodule Ultramoist.MixProject do
   defp deps do
     [
       {:req, "~> 0.5"},
-      {:plug, "~> 1.0", only: :test}
+      {:plug, "~> 1.0", only: :test},
+      {:mint_web_socket, "~> 1.0"}
     ]
   end
 end

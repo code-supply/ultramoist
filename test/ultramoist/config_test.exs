@@ -35,4 +35,9 @@ defmodule Ultramoist.ConfigTest do
     assert Ultramoist.Config.stats_url(:testnet) == "https://stats-data.hyperliquid.xyz/Testnet"
     assert Ultramoist.Config.stats_url(:mainnet) == "https://stats-data.hyperliquid.xyz/Mainnet"
   end
+
+  test "resolves the WebSocket URL for an explicit chain, without touching global config" do
+    assert Ultramoist.Config.web_socket_url(:testnet) == "wss://api.hyperliquid-testnet.xyz/ws"
+    assert Ultramoist.Config.web_socket_url(:mainnet) == "wss://api.hyperliquid.xyz/ws"
+  end
 end
