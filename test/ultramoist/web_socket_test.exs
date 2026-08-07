@@ -115,4 +115,17 @@ defmodule Ultramoist.WebSocketTest do
 
     assert_receive {:frame_sent, "user_fills_frame"}
   end
+
+  # @spec WS-API-006
+  test "connects to the real testnet WebSocket endpoint" do
+    {:ok, conn} =
+      Ultramoist.WebSocket.MintTransport.open(Ultramoist.Config.web_socket_url(:testnet), self())
+
+    assert_receive {:ws, ^conn, :connected}
+
+    Ultramoist.WebSocket.MintTransport.send_frame(conn, Jason.encode!(%{"method" => "ping"}))
+
+    assert_receive {:ws, ^conn, {:frame, response}}, 5_000
+    assert %{"channel" => "pong"} = Jason.decode!(response)
+  end
 end
