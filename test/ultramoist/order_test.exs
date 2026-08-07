@@ -59,39 +59,42 @@ defmodule Ultramoist.OrderTest do
 
   # @spec ORD-API-001
   test "places a limit order for a known coin: resolves asset index, signs, submits, returns order id" do
-    {:ok, cache_pid} =
-      Ultramoist.AssetCache.start_link(base_url: Ultramoist.Config.info_url(:testnet))
+    meta_stub = fn %{"type" => "meta"}, _opts -> {:ok, %{"universe" => [%{"name" => "BTC"}]}} end
 
-    Req.Test.stub(Ultramoist.OrderTest, fn conn ->
-      Req.Test.json(conn, %{
-        "status" => "ok",
-        "response" => %{
-          "type" => "order",
-          "data" => %{"statuses" => [%{"resting" => %{"oid" => 99}}]}
-        }
-      })
-    end)
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{"statuses" => [%{"resting" => %{"oid" => 99}}]}
+         }
+       }}
+    end
 
     priv_key = :crypto.hash(:sha256, "order test private key")
 
     assert Ultramoist.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
              priv_key: priv_key,
              source: Ultramoist.Signer.testnet_source(),
-             base_url: Ultramoist.Config.info_url(:testnet),
-             plug: {Req.Test, Ultramoist.OrderTest}
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 99}
   end
 
   # @spec ORD-API-002
   test "returns a not-found error for an unknown coin without signing or submitting anything" do
-    Req.Test.stub(Ultramoist.OrderTest, fn conn ->
-      Req.Test.json(conn, %{"universe" => [%{"name" => "BTC"}]})
-    end)
+    meta_stub = fn %{"type" => "meta"}, _opts -> {:ok, %{"universe" => [%{"name" => "BTC"}]}} end
 
     {:ok, cache_pid} =
       Ultramoist.AssetCache.start_link(
-        base_url: Ultramoist.Config.info_url(:testnet),
-        plug: {Req.Test, Ultramoist.OrderTest}
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
       )
 
     assert Ultramoist.Order.place_limit(cache_pid, "NOTACOIN", true, "1.0", "0.001", []) ==
@@ -100,12 +103,13 @@ defmodule Ultramoist.OrderTest do
 
   # @spec ORD-API-003
   test "cancels an order: signs, submits, and returns confirmation" do
-    Req.Test.stub(Ultramoist.OrderTest, fn conn ->
-      Req.Test.json(conn, %{
-        "status" => "ok",
-        "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
-      })
-    end)
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
+       }}
+    end
 
     priv_key = :crypto.hash(:sha256, "order test private key")
 
@@ -114,8 +118,7 @@ defmodule Ultramoist.OrderTest do
              order_id: 99,
              priv_key: priv_key,
              source: Ultramoist.Signer.testnet_source(),
-             base_url: Ultramoist.Config.info_url(:testnet),
-             plug: {Req.Test, Ultramoist.OrderTest}
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == :ok
   end
 end

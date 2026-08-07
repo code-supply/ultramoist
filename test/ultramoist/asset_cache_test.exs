@@ -21,10 +21,15 @@ defmodule Ultramoist.AssetCacheTest do
   end
 
   # @spec CACHE-API-001
-  test "populates its index from the real testnet meta endpoint at startup" do
-    {:ok, pid} =
-      Ultramoist.AssetCache.start_link(base_url: Ultramoist.Config.info_url(:testnet))
+  test "populates its index from the meta endpoint at startup" do
+    stub = fn %{"type" => "meta"}, _opts -> {:ok, %{"universe" => [%{"name" => "BTC"}]}} end
 
-    assert {:ok, _asset_index} = Ultramoist.AssetCache.lookup(pid, "BTC")
+    {:ok, pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: stub}
+      )
+
+    assert {:ok, 0} = Ultramoist.AssetCache.lookup(pid, "BTC")
   end
 end

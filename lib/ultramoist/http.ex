@@ -1,18 +1,21 @@
 defmodule Ultramoist.Http do
   @moduledoc false
 
+  @behaviour Ultramoist.Http.Client
+
+  @impl true
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    req_opts = Keyword.drop(opts, [:base_url])
-
-    unwrap(Req.post(Keyword.merge([url: base_url <> "/info", json: body], req_opts)))
+    unwrap(Req.post(base_url <> "/info", json: body))
   end
 
+  @impl true
   def stats_request(type, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
     unwrap(Req.get(base_url <> "/" <> type))
   end
 
+  @impl true
   def exchange_request(action, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
     signature = Keyword.fetch!(opts, :signature)
@@ -26,9 +29,7 @@ defmodule Ultramoist.Http do
       "vaultAddress" => vault_address
     }
 
-    req_opts = Keyword.drop(opts, [:base_url, :signature, :nonce, :vault_address])
-
-    unwrap(Req.post(Keyword.merge([url: base_url <> "/exchange", json: body], req_opts)))
+    unwrap(Req.post(base_url <> "/exchange", json: body))
   end
 
   defp to_json(keyword_list) when is_list(keyword_list) do

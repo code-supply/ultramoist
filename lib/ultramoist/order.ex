@@ -62,6 +62,7 @@ defmodule Ultramoist.Order do
     priv_key = Keyword.fetch!(opts, :priv_key)
     source = Keyword.fetch!(opts, :source)
     vault_address = Keyword.get(opts, :vault_address)
+    {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
     nonce = System.system_time(:millisecond)
 
     {signature_r, signature_s, recovery_v} =
@@ -78,11 +79,12 @@ defmodule Ultramoist.Order do
       "v" => recovery_v
     }
 
-    http_opts =
+    request_opts =
       opts
-      |> Keyword.drop([:priv_key, :source, :vault_address])
+      |> Keyword.drop([:priv_key, :source, :vault_address, :http])
+      |> Keyword.merge(http_opts)
       |> Keyword.merge(signature: signature, nonce: nonce, vault_address: vault_address)
 
-    Ultramoist.Http.exchange_request(action, http_opts)
+    http.exchange_request(action, request_opts)
   end
 end

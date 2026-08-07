@@ -13,10 +13,10 @@ defmodule Ultramoist.AssetCache do
   @impl true
   def init(init_opts) do
     base_url = Keyword.get_lazy(init_opts, :base_url, &Ultramoist.Config.info_url/0)
-    http_opts = Keyword.put(Keyword.drop(init_opts, [:base_url]), :base_url, base_url)
+    {http, http_opts} = Keyword.get(init_opts, :http, {Ultramoist.Http, []})
 
     {:ok, %{"universe" => universe}} =
-      Ultramoist.Http.info_request(%{"type" => "meta"}, http_opts)
+      http.info_request(%{"type" => "meta"}, Keyword.put(http_opts, :base_url, base_url))
 
     {:ok, build_index(universe)}
   end
