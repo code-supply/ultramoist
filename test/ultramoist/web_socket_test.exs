@@ -212,4 +212,13 @@ defmodule Ultramoist.WebSocketTest do
     assert_receive {:ws, ^conn, {:frame, response}}, 5_000
     assert %{"channel" => "pong"} = JSON.decode!(response)
   end
+
+  test "ignores unrecognized messages received while awaiting the WebSocket upgrade" do
+    send(self(), :unrelated_message)
+
+    {:ok, conn} =
+      Ultramoist.WebSocket.MintTransport.open(Ultramoist.Config.web_socket_url(:testnet), self())
+
+    assert_receive {:ws, ^conn, :connected}
+  end
 end

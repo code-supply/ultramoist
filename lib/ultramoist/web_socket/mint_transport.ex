@@ -58,6 +58,9 @@ defmodule Ultramoist.WebSocket.MintTransport do
 
           {:error, conn, reason, _responses} ->
             {:error, conn, reason}
+
+          :unknown ->
+            await_upgrade(conn, ref, acc)
         end
     after
       5_000 -> {:error, conn, :timeout}
