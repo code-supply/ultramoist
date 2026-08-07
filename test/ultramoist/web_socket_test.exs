@@ -87,10 +87,13 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", "user_fills_frame")
-    assert_receive {:frame_sent, "user_fills_frame"}
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills"}
 
-    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", "user_fills_frame")
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", subscription, callback)
+    assert_receive {:frame_sent, _frame}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", subscription, callback)
     refute_receive {:frame_sent, _}
   end
 
@@ -107,13 +110,32 @@ defmodule Ultramoist.WebSocketTest do
 
     assert_receive {:transport_opened, conn}
 
-    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", "user_fills_frame")
-    assert_receive {:frame_sent, "user_fills_frame"}
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", subscription, callback)
+    assert_receive {:frame_sent, _frame}
 
     send(pid, {:ws, conn, :disconnected})
     assert_receive {:transport_opened, _reconnected_conn}
 
-    assert_receive {:frame_sent, "user_fills_frame"}
+    assert_receive {:frame_sent, _frame}
+  end
+
+  # @spec SUB-API-001
+  test "subscribe wraps the subscription in an envelope, sends it, and stores the callback" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, _conn}
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
+
+    assert_receive {:frame_sent, frame}
+    assert JSON.decode!(frame) == %{"method" => "subscribe", "subscription" => subscription}
   end
 
   # @spec WS-API-006
@@ -123,9 +145,9 @@ defmodule Ultramoist.WebSocketTest do
 
     assert_receive {:ws, ^conn, :connected}
 
-    Ultramoist.WebSocket.MintTransport.send_frame(conn, Jason.encode!(%{"method" => "ping"}))
+    Ultramoist.WebSocket.MintTransport.send_frame(conn, JSON.encode!(%{"method" => "ping"}))
 
     assert_receive {:ws, ^conn, {:frame, response}}, 5_000
-    assert %{"channel" => "pong"} = Jason.decode!(response)
+    assert %{"channel" => "pong"} = JSON.decode!(response)
   end
 end

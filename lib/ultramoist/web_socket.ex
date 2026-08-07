@@ -14,7 +14,9 @@ defmodule Ultramoist.WebSocket do
 
   def status(pid), do: GenServer.call(pid, :status)
 
-  def subscribe(pid, key, request), do: GenServer.call(pid, {:subscribe, key, request})
+  def subscribe(pid, key, subscription, callback) do
+    GenServer.call(pid, {:subscribe, key, subscription, callback})
+  end
 
   @impl true
   def init(opts) do
@@ -48,23 +50,29 @@ defmodule Ultramoist.WebSocket do
 
   # @spec WS-API-004
   @impl true
-  def handle_call({:subscribe, key, _request}, _from, %{subscriptions: subs} = state)
+  def handle_call(
+        {:subscribe, key, _subscription, _callback},
+        _from,
+        %{subscriptions: subs} = state
+      )
       when is_map_key(subs, key) do
     {:reply, :ok, state}
   end
 
-  def handle_call({:subscribe, key, request}, _from, state) do
-    if state.status == :connected, do: state.transport.send_frame(state.conn, request)
+  # @spec SUB-API-001
+  def handle_call({:subscribe, key, subscription, callback}, _from, state) do
+    if state.status == :connected, do: send_envelope(state, "subscribe", subscription)
 
-    {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, request)}}
+    entry = %{subscription: subscription, callback: callback}
+    {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, entry)}}
   end
 
   # @spec WS-API-001
   # @spec WS-API-003
   @impl true
   def handle_info({:ws, conn, :connected}, %{conn: conn} = state) do
-    Enum.each(state.subscriptions, fn {_key, request} ->
-      state.transport.send_frame(conn, request)
+    Enum.each(state.subscriptions, fn {_key, %{subscription: subscription}} ->
+      send_envelope(state, "subscribe", subscription)
     end)
 
     {:noreply, %{state | status: :connected, reconnect_attempts: 0}}
@@ -81,5 +89,10 @@ defmodule Ultramoist.WebSocket do
   def handle_info(:reconnect, state) do
     {:ok, conn} = state.transport.open(state.url, self())
     {:noreply, %{state | conn: conn}}
+  end
+
+  defp send_envelope(state, method, subscription) do
+    frame = JSON.encode!(%{"method" => method, "subscription" => subscription})
+    state.transport.send_frame(state.conn, frame)
   end
 end
