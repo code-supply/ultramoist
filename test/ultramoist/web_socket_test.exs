@@ -138,6 +138,68 @@ defmodule Ultramoist.WebSocketTest do
     assert JSON.decode!(frame) == %{"method" => "subscribe", "subscription" => subscription}
   end
 
+  # @spec SUB-API-002
+  test "invokes the matching subscription's callback when a message arrives" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, conn}
+
+    test_pid = self()
+    callback = fn message -> send(test_pid, {:callback_invoked, message}) end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
+    assert_receive {:frame_sent, _frame}
+
+    incoming = JSON.encode!(%{"channel" => "userFills", "data" => %{"fills" => []}})
+    send(pid, {:ws, conn, {:frame, incoming}})
+
+    assert_receive {:callback_invoked, %{"channel" => "userFills", "data" => %{"fills" => []}}}
+  end
+
+  # @spec SUB-API-003
+  test "unsubscribe removes the subscription and sends an unsubscribe envelope" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, _conn}
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
+    assert_receive {:frame_sent, _subscribe_frame}
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, "userFills:0xabc")
+
+    assert_receive {:frame_sent, frame}
+    assert JSON.decode!(frame) == %{"method" => "unsubscribe", "subscription" => subscription}
+  end
+
+  # @spec SUB-API-004
+  test "does not invoke the callback for a subscription that has been unsubscribed" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, conn}
+
+    test_pid = self()
+    callback = fn message -> send(test_pid, {:callback_invoked, message}) end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
+    assert_receive {:frame_sent, _subscribe_frame}
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, "userFills:0xabc")
+    assert_receive {:frame_sent, _unsubscribe_frame}
+
+    incoming = JSON.encode!(%{"channel" => "userFills", "data" => %{"fills" => []}})
+    send(pid, {:ws, conn, {:frame, incoming}})
+
+    refute_receive {:callback_invoked, _}
+  end
+
   # @spec WS-API-006
   test "connects to the real testnet WebSocket endpoint" do
     {:ok, conn} =

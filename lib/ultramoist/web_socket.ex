@@ -18,6 +18,8 @@ defmodule Ultramoist.WebSocket do
     GenServer.call(pid, {:subscribe, key, subscription, callback})
   end
 
+  def unsubscribe(pid, key), do: GenServer.call(pid, {:unsubscribe, key})
+
   @impl true
   def init(opts) do
     url = Keyword.fetch!(opts, :url)
@@ -67,6 +69,16 @@ defmodule Ultramoist.WebSocket do
     {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, entry)}}
   end
 
+  # @spec SUB-API-003
+  @impl true
+  def handle_call({:unsubscribe, key}, _from, state) do
+    {entry, subscriptions} = Map.pop(state.subscriptions, key)
+
+    if entry, do: send_envelope(state, "unsubscribe", entry.subscription)
+
+    {:reply, :ok, %{state | subscriptions: subscriptions}}
+  end
+
   # @spec WS-API-001
   # @spec WS-API-003
   @impl true
@@ -76,6 +88,18 @@ defmodule Ultramoist.WebSocket do
     end)
 
     {:noreply, %{state | status: :connected, reconnect_attempts: 0}}
+  end
+
+  # @spec SUB-API-002
+  @impl true
+  def handle_info({:ws, conn, {:frame, text}}, %{conn: conn} = state) do
+    message = JSON.decode!(text)
+
+    Enum.each(state.subscriptions, fn {_key, %{subscription: subscription, callback: callback}} ->
+      if subscription["type"] == message["channel"], do: callback.(message)
+    end)
+
+    {:noreply, state}
   end
 
   # @spec WS-API-002
