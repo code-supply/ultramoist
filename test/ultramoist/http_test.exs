@@ -1,19 +1,20 @@
 defmodule Ultramoist.HttpTest do
   use ExUnit.Case, async: true
 
-  @testnet_url "https://api.hyperliquid-testnet.xyz"
-  @testnet_stats_url "https://stats-data.hyperliquid.xyz/Testnet"
-
   # @spec HTTP-API-001
   test "makes a generic info request against the real testnet host" do
     assert {:ok, %{"universe" => [%{"name" => _name} | _rest]}} =
-             Ultramoist.Http.info_request(%{"type" => "meta"}, base_url: @testnet_url)
+             Ultramoist.Http.info_request(%{"type" => "meta"},
+               base_url: Ultramoist.Config.info_url(:testnet)
+             )
   end
 
   # @spec HTTP-API-003
   test "makes a stats request against the real testnet host" do
     assert {:ok, [%{"summary" => %{"vaultAddress" => _address}} | _rest]} =
-             Ultramoist.Http.stats_request("vaults", base_url: @testnet_stats_url)
+             Ultramoist.Http.stats_request("vaults",
+               base_url: Ultramoist.Config.stats_url(:testnet)
+             )
   end
 
   # @spec HTTP-API-002
@@ -31,7 +32,7 @@ defmodule Ultramoist.HttpTest do
                signature: signature,
                nonce: 1,
                vault_address: nil,
-               base_url: @testnet_url
+               base_url: Ultramoist.Config.info_url(:testnet)
              )
   end
 end

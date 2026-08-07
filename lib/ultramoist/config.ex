@@ -10,8 +10,10 @@ defmodule Ultramoist.Config do
     end
   end
 
-  def stats_url do
-    case chain() do
+  def stats_url, do: stats_url(chain())
+
+  def stats_url(chain) do
+    case chain do
       :mainnet -> "https://stats-data.hyperliquid.xyz/Mainnet"
       :testnet -> "https://stats-data.hyperliquid.xyz/Testnet"
     end

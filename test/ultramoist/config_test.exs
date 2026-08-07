@@ -30,4 +30,9 @@ defmodule Ultramoist.ConfigTest do
     assert Ultramoist.Config.info_url(:testnet) == "https://api.hyperliquid-testnet.xyz"
     assert Ultramoist.Config.info_url(:mainnet) == "https://api.hyperliquid.xyz"
   end
+
+  test "resolves the stats URL for an explicit chain, without touching global config" do
+    assert Ultramoist.Config.stats_url(:testnet) == "https://stats-data.hyperliquid.xyz/Testnet"
+    assert Ultramoist.Config.stats_url(:mainnet) == "https://stats-data.hyperliquid.xyz/Mainnet"
+  end
 end

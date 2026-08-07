@@ -3,7 +3,9 @@ defmodule Ultramoist.Http do
 
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    unwrap(Req.post(base_url <> "/info", json: body))
+    req_opts = Keyword.drop(opts, [:base_url])
+
+    unwrap(Req.post(Keyword.merge([url: base_url <> "/info", json: body], req_opts)))
   end
 
   def stats_request(type, opts) do
