@@ -14,6 +14,8 @@ defmodule Ultramoist.WebSocket do
 
   def status(pid), do: GenServer.call(pid, :status)
 
+  def subscribe(pid, key, request), do: GenServer.call(pid, {:subscribe, key, request})
+
   @impl true
   def init(opts) do
     url = Keyword.fetch!(opts, :url)
@@ -29,7 +31,8 @@ defmodule Ultramoist.WebSocket do
        conn: conn,
        status: :disconnected,
        reconnect_attempts: 0,
-       backoff_delay: backoff_delay
+       backoff_delay: backoff_delay,
+       subscriptions: %{}
      }}
   end
 
@@ -38,9 +41,27 @@ defmodule Ultramoist.WebSocket do
     {:reply, state.status, state}
   end
 
+  # @spec WS-API-004
+  @impl true
+  def handle_call({:subscribe, key, _request}, _from, %{subscriptions: subs} = state)
+      when is_map_key(subs, key) do
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:subscribe, key, request}, _from, state) do
+    if state.status == :connected, do: state.transport.send_frame(state.conn, request)
+
+    {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, request)}}
+  end
+
   # @spec WS-API-001
+  # @spec WS-API-003
   @impl true
   def handle_info({:ws, conn, :connected}, %{conn: conn} = state) do
+    Enum.each(state.subscriptions, fn {_key, request} ->
+      state.transport.send_frame(conn, request)
+    end)
+
     {:noreply, %{state | status: :connected, reconnect_attempts: 0}}
   end
 
