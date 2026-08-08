@@ -28,7 +28,8 @@ defmodule Ultramoist.MixProject do
     [
       {:req, "~> 0.5"},
       {:plug, "~> 1.0", only: :test},
-      {:mint_web_socket, "~> 1.0"}
+      {:mint_web_socket, "~> 1.0"},
+      {:decimal, ">= 1.9.0"}
     ]
   end
 end
