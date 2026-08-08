@@ -57,9 +57,25 @@ defmodule Ultramoist.OrderTest do
     assert Ultramoist.Order.parse_cancel_response(response) == :ok
   end
 
+  test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
+    assert Ultramoist.Order.format_price("50000.123456", 5) == "50000"
+    assert Ultramoist.Order.format_price(50000, 5) == "50000"
+  end
+
+  test "truncates size to the asset's size decimals" do
+    assert Ultramoist.Order.format_size("1.23456789", 5) == "1.23456"
+    assert Ultramoist.Order.format_size(0.001, 3) == "0.001"
+  end
+
+  test "does not pad size with trailing zeros when it has fewer decimals than allowed" do
+    assert Ultramoist.Order.format_size("0.001", 5) == "0.001"
+  end
+
   # @spec ORD-API-001
   test "places a limit order for a known coin: resolves asset index, signs, submits, returns order id" do
-    meta_stub = fn %{"type" => "meta"}, _opts -> {:ok, %{"universe" => [%{"name" => "BTC"}]}} end
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
 
     {:ok, cache_pid} =
       Ultramoist.AssetCache.start_link(
@@ -89,7 +105,9 @@ defmodule Ultramoist.OrderTest do
 
   # @spec ORD-API-002
   test "returns a not-found error for an unknown coin without signing or submitting anything" do
-    meta_stub = fn %{"type" => "meta"}, _opts -> {:ok, %{"universe" => [%{"name" => "BTC"}]}} end
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
 
     {:ok, cache_pid} =
       Ultramoist.AssetCache.start_link(

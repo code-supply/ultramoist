@@ -29,7 +29,9 @@ defmodule Ultramoist.AssetCache do
   def build_index(universe) do
     universe
     |> Enum.with_index()
-    |> Map.new(fn {%{"name" => name}, index} -> {name, index} end)
+    |> Map.new(fn {%{"name" => name, "szDecimals" => size_decimals}, asset_index} ->
+      {name, %{asset_index: asset_index, size_decimals: size_decimals}}
+    end)
   end
 
   def resolve(index, coin) do

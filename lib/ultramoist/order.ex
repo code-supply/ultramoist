@@ -37,13 +37,57 @@ defmodule Ultramoist.Order do
 
   # @spec ORD-API-001
   def place_limit(cache_pid, coin, is_buy, limit_px, sz, opts) do
-    with {:ok, asset_index} <- Ultramoist.AssetCache.lookup(cache_pid, coin) do
-      action = build_place_action(asset_index, is_buy, limit_px, sz)
+    with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
+           Ultramoist.AssetCache.lookup(cache_pid, coin) do
+      formatted_price = format_price(limit_px, size_decimals)
+      formatted_size = format_size(sz, size_decimals)
+      action = build_place_action(asset_index, is_buy, formatted_price, formatted_size)
 
       with {:ok, response} <- sign_and_submit(action, opts) do
         parse_place_response(response)
       end
     end
+  end
+
+  def format_price(price, size_decimals) do
+    decimal = to_decimal(price)
+
+    if Decimal.integer?(decimal) do
+      Decimal.to_string(decimal, :normal)
+    else
+      max_decimals = max(6 - size_decimals, 0)
+
+      decimal
+      |> Decimal.round(max_decimals, :down)
+      |> round_significant(5)
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+    end
+  end
+
+  def format_size(size, size_decimals) do
+    size
+    |> to_decimal()
+    |> Decimal.round(size_decimals, :down)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  defp to_decimal(%Decimal{} = value), do: value
+  defp to_decimal(value), do: Decimal.new(to_string(value))
+
+  defp round_significant(decimal, significant_figures) do
+    if Decimal.eq?(decimal, 0) do
+      decimal
+    else
+      decimal_places = significant_figures - 1 - order_of_magnitude(decimal)
+      Decimal.round(decimal, decimal_places, :down)
+    end
+  end
+
+  defp order_of_magnitude(%Decimal{coef: coefficient, exp: exponent}) do
+    digit_count = coefficient |> Integer.to_string() |> String.length()
+    digit_count - 1 + exponent
   end
 
   # @spec ORD-API-003

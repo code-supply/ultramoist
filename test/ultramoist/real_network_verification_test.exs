@@ -27,7 +27,7 @@ defmodule Ultramoist.RealNetworkVerificationTest do
                base_url: base_url
              )
 
-    {:ok, asset_index} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
+    {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
 
     assert :ok =
              Ultramoist.Order.cancel(
