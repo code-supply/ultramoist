@@ -14,14 +14,14 @@ defmodule Ultramoist.WebSocketTest do
     end
 
     @impl true
-    def open(_url, owner) do
+    def open(url, owner) do
       conn = make_ref()
 
       %{test_pid: test_pid, auto_connect: auto_connect} =
         Agent.get_and_update(__MODULE__, fn s -> {s, %{s | conn: conn}} end)
 
       if auto_connect, do: send(owner, {:ws, conn, :connected})
-      send(test_pid, {:transport_opened, conn})
+      send(test_pid, {:transport_opened, conn, url})
 
       {:ok, conn}
     end
@@ -49,7 +49,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert_receive {:transport_opened, _conn}
+    assert_receive {:transport_opened, _conn, _url}
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
@@ -64,8 +64,20 @@ defmodule Ultramoist.WebSocketTest do
         transport: TestTransport
       )
 
-    assert_receive {:transport_opened, _conn}
+    assert_receive {:transport_opened, _conn, _url}
     assert Ultramoist.WebSocket.status(__MODULE__.NamedSocket) == :connected
+  end
+
+  # @spec WS-API-008
+  test "defaults to the configured Hyperliquid WebSocket URL when none is given" do
+    Application.put_env(:ultramoist, :chain, :testnet)
+    on_exit(fn -> Application.delete_env(:ultramoist, :chain) end)
+
+    {:ok, _agent} = TestTransport.start(self())
+
+    {:ok, _pid} = Ultramoist.WebSocket.start_link(transport: TestTransport)
+
+    assert_receive {:transport_opened, _conn, "wss://api.hyperliquid-testnet.xyz/ws"}
   end
 
   # @spec WS-API-005
@@ -88,12 +100,12 @@ defmodule Ultramoist.WebSocketTest do
         backoff_delay: fn _attempt -> 0 end
       )
 
-    assert_receive {:transport_opened, conn}
+    assert_receive {:transport_opened, conn, _url}
 
     send(pid, {:ws, conn, :disconnected})
     assert Ultramoist.WebSocket.status(pid) == :reconnecting
 
-    assert_receive {:transport_opened, _reconnected_conn}
+    assert_receive {:transport_opened, _reconnected_conn, _url}
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
@@ -123,7 +135,7 @@ defmodule Ultramoist.WebSocketTest do
         backoff_delay: fn _attempt -> 0 end
       )
 
-    assert_receive {:transport_opened, conn}
+    assert_receive {:transport_opened, conn, _url}
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills"}
@@ -132,7 +144,7 @@ defmodule Ultramoist.WebSocketTest do
     assert_receive {:frame_sent, _frame}
 
     send(pid, {:ws, conn, :disconnected})
-    assert_receive {:transport_opened, _reconnected_conn}
+    assert_receive {:transport_opened, _reconnected_conn, _url}
 
     assert_receive {:frame_sent, _frame}
   end
@@ -142,7 +154,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert_receive {:transport_opened, _conn}
+    assert_receive {:transport_opened, _conn, _url}
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills", "user" => "0xabc"}
@@ -158,7 +170,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert_receive {:transport_opened, conn}
+    assert_receive {:transport_opened, conn, _url}
 
     test_pid = self()
     callback = fn message -> send(test_pid, {:callback_invoked, message}) end
@@ -178,7 +190,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert_receive {:transport_opened, _conn}
+    assert_receive {:transport_opened, _conn, _url}
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills", "user" => "0xabc"}
@@ -197,7 +209,7 @@ defmodule Ultramoist.WebSocketTest do
     {:ok, _agent} = TestTransport.start(self())
     {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
 
-    assert_receive {:transport_opened, conn}
+    assert_receive {:transport_opened, conn, _url}
 
     test_pid = self()
     callback = fn message -> send(test_pid, {:callback_invoked, message}) end

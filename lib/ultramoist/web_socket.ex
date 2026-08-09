@@ -25,7 +25,7 @@ defmodule Ultramoist.WebSocket do
 
   @impl true
   def init(opts) do
-    url = Keyword.fetch!(opts, :url)
+    url = Keyword.get_lazy(opts, :url, &Ultramoist.Config.web_socket_url/0)
     transport = Keyword.fetch!(opts, :transport)
     backoff_delay = Keyword.get(opts, :backoff_delay, &backoff_delay/1)
 
