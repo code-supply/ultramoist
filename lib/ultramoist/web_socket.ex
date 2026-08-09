@@ -10,7 +10,10 @@ defmodule Ultramoist.WebSocket do
     Enum.at(@backoff_delays, attempt, List.last(@backoff_delays))
   end
 
-  def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
+  def start_link(opts) do
+    {gen_opts, init_opts} = Keyword.split(opts, [:name])
+    GenServer.start_link(__MODULE__, init_opts, gen_opts)
+  end
 
   def status(pid), do: GenServer.call(pid, :status)
 

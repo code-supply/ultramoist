@@ -53,6 +53,21 @@ defmodule Ultramoist.WebSocketTest do
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
+  # @spec WS-API-007
+  test "can be started under a registered name for other processes to call into" do
+    {:ok, _agent} = TestTransport.start(self())
+
+    {:ok, _pid} =
+      Ultramoist.WebSocket.start_link(
+        name: __MODULE__.NamedSocket,
+        url: "ws://fake",
+        transport: TestTransport
+      )
+
+    assert_receive {:transport_opened, _conn}
+    assert Ultramoist.WebSocket.status(__MODULE__.NamedSocket) == :connected
+  end
+
   # @spec WS-API-005
   test "reports disconnected status before any connection is established" do
     {:ok, _agent} = TestTransport.start(self(), auto_connect: false)
