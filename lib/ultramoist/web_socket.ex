@@ -99,7 +99,7 @@ defmodule Ultramoist.WebSocket do
     message = JSON.decode!(text)
 
     Enum.each(state.subscriptions, fn {_key, %{subscription: subscription, callback: callback}} ->
-      if subscription["type"] == message["channel"], do: callback.(message)
+      if matches?(subscription, message), do: callback.(message)
     end)
 
     {:noreply, state}
@@ -121,5 +121,12 @@ defmodule Ultramoist.WebSocket do
   defp send_envelope(state, method, subscription) do
     frame = JSON.encode!(%{"method" => method, "subscription" => subscription})
     state.transport.send_frame(state.conn, frame)
+  end
+
+  defp matches?(subscription, message) do
+    subscription["type"] == message["channel"] and
+      subscription
+      |> Map.delete("type")
+      |> Enum.all?(fn {key, value} -> message["data"][key] == value end)
   end
 end

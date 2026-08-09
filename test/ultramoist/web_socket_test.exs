@@ -179,10 +179,45 @@ defmodule Ultramoist.WebSocketTest do
     assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
     assert_receive {:frame_sent, _frame}
 
-    incoming = JSON.encode!(%{"channel" => "userFills", "data" => %{"fills" => []}})
+    incoming =
+      JSON.encode!(%{"channel" => "userFills", "data" => %{"fills" => [], "user" => "0xabc"}})
+
     send(pid, {:ws, conn, {:frame, incoming}})
 
-    assert_receive {:callback_invoked, %{"channel" => "userFills", "data" => %{"fills" => []}}}
+    assert_receive {:callback_invoked,
+                    %{"channel" => "userFills", "data" => %{"fills" => [], "user" => "0xabc"}}}
+  end
+
+  # @spec SUB-API-005
+  test "does not invoke a same-type subscription's callback when a message arrives for a different user" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, conn, _url}
+
+    test_pid = self()
+    callback = fn message -> send(test_pid, {:callback_invoked, message}) end
+    subscription = %{"type" => "clearinghouseState", "user" => "0xabc", "dex" => ""}
+
+    assert :ok =
+             Ultramoist.WebSocket.subscribe(
+               pid,
+               "clearinghouseState:0xabc",
+               subscription,
+               callback
+             )
+
+    assert_receive {:frame_sent, _frame}
+
+    incoming =
+      JSON.encode!(%{
+        "channel" => "clearinghouseState",
+        "data" => %{"user" => "0xother", "dex" => "", "clearinghouseState" => %{}}
+      })
+
+    send(pid, {:ws, conn, {:frame, incoming}})
+
+    refute_receive {:callback_invoked, _}
   end
 
   # @spec SUB-API-003
