@@ -39,6 +39,21 @@ defmodule Ultramoist.Orders.OrderTest do
              {:error, "Price must be divisible by tick size."}
   end
 
+  # @spec ORD-DATA-006
+  test "parses an order-placement response that filled immediately into the resulting order id" do
+    response = %{
+      "status" => "ok",
+      "response" => %{
+        "type" => "order",
+        "data" => %{
+          "statuses" => [%{"filled" => %{"totalSz" => "0.1", "avgPx" => "100.5", "oid" => 12345}}]
+        }
+      }
+    }
+
+    assert Ultramoist.Orders.Order.parse_place_response(response) == {:ok, 12345}
+  end
+
   # @spec ORD-DATA-004
   test "builds a cancel action from an asset index and order id" do
     assert Ultramoist.Orders.Order.build_cancel_action(0, 12345) == [

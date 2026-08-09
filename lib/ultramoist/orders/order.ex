@@ -25,6 +25,13 @@ defmodule Ultramoist.Orders.Order do
     {:error, reason}
   end
 
+  # @spec ORD-DATA-006
+  def parse_place_response(%{
+        "response" => %{"data" => %{"statuses" => [%{"filled" => %{"oid" => order_id}}]}}
+      }) do
+    {:ok, order_id}
+  end
+
   # @spec ORD-DATA-004
   def build_cancel_action(asset_index, order_id) do
     [type: "cancel", cancels: [[a: asset_index, o: order_id]]]
