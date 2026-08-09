@@ -1,4 +1,4 @@
-defmodule Ultramoist.OpenOrder do
+defmodule Ultramoist.Orders.OpenOrder do
   @moduledoc false
 
   defstruct [:coin, :side, :limit_price, :size, :order_id, :timestamp, :original_size]

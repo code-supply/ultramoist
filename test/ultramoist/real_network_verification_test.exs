@@ -21,7 +21,7 @@ defmodule Ultramoist.RealNetworkVerificationTest do
     {:ok, cache_pid} = Ultramoist.AssetCache.start_link(base_url: base_url)
 
     assert {:ok, order_id} =
-             Ultramoist.Order.place_limit(cache_pid, "BTC", true, limit_price, "0.001",
+             Ultramoist.Orders.Order.place_limit(cache_pid, "BTC", true, limit_price, "0.001",
                priv_key: priv_key,
                source: Ultramoist.Signer.testnet_source(),
                base_url: base_url
@@ -30,7 +30,7 @@ defmodule Ultramoist.RealNetworkVerificationTest do
     {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
 
     assert :ok =
-             Ultramoist.Order.cancel(
+             Ultramoist.Orders.Order.cancel(
                asset_index: asset_index,
                order_id: order_id,
                priv_key: priv_key,

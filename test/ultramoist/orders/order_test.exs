@@ -1,9 +1,9 @@
-defmodule Ultramoist.OrderTest do
+defmodule Ultramoist.Orders.OrderTest do
   use ExUnit.Case, async: true
 
   # @spec ORD-DATA-001
   test "builds a GTC limit-order action from an asset index, side, price, and size" do
-    assert Ultramoist.Order.build_place_action(0, true, "100.5", "0.1") == [
+    assert Ultramoist.Orders.Order.build_place_action(0, true, "100.5", "0.1") == [
              type: "order",
              orders: [
                [a: 0, b: true, p: "100.5", s: "0.1", r: false, t: [limit: [tif: "Gtc"]]]
@@ -22,7 +22,7 @@ defmodule Ultramoist.OrderTest do
       }
     }
 
-    assert Ultramoist.Order.parse_place_response(response) == {:ok, 12345}
+    assert Ultramoist.Orders.Order.parse_place_response(response) == {:ok, 12345}
   end
 
   # @spec ORD-DATA-003
@@ -35,13 +35,13 @@ defmodule Ultramoist.OrderTest do
       }
     }
 
-    assert Ultramoist.Order.parse_place_response(response) ==
+    assert Ultramoist.Orders.Order.parse_place_response(response) ==
              {:error, "Price must be divisible by tick size."}
   end
 
   # @spec ORD-DATA-004
   test "builds a cancel action from an asset index and order id" do
-    assert Ultramoist.Order.build_cancel_action(0, 12345) == [
+    assert Ultramoist.Orders.Order.build_cancel_action(0, 12345) == [
              type: "cancel",
              cancels: [[a: 0, o: 12345]]
            ]
@@ -54,21 +54,21 @@ defmodule Ultramoist.OrderTest do
       "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
     }
 
-    assert Ultramoist.Order.parse_cancel_response(response) == :ok
+    assert Ultramoist.Orders.Order.parse_cancel_response(response) == :ok
   end
 
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
-    assert Ultramoist.Order.format_price("50000.123456", 5) == "50000"
-    assert Ultramoist.Order.format_price(50000, 5) == "50000"
+    assert Ultramoist.Orders.Order.format_price("50000.123456", 5) == "50000"
+    assert Ultramoist.Orders.Order.format_price(50000, 5) == "50000"
   end
 
   test "truncates size to the asset's size decimals" do
-    assert Ultramoist.Order.format_size("1.23456789", 5) == "1.23456"
-    assert Ultramoist.Order.format_size(0.001, 3) == "0.001"
+    assert Ultramoist.Orders.Order.format_size("1.23456789", 5) == "1.23456"
+    assert Ultramoist.Orders.Order.format_size(0.001, 3) == "0.001"
   end
 
   test "does not pad size with trailing zeros when it has fewer decimals than allowed" do
-    assert Ultramoist.Order.format_size("0.001", 5) == "0.001"
+    assert Ultramoist.Orders.Order.format_size("0.001", 5) == "0.001"
   end
 
   # @spec ORD-API-001
@@ -96,7 +96,7 @@ defmodule Ultramoist.OrderTest do
 
     priv_key = :crypto.hash(:sha256, "order test private key")
 
-    assert Ultramoist.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
+    assert Ultramoist.Orders.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
              priv_key: priv_key,
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
@@ -115,7 +115,7 @@ defmodule Ultramoist.OrderTest do
         http: {Ultramoist.FakeHttp, stub: meta_stub}
       )
 
-    assert Ultramoist.Order.place_limit(cache_pid, "NOTACOIN", true, "1.0", "0.001", []) ==
+    assert Ultramoist.Orders.Order.place_limit(cache_pid, "NOTACOIN", true, "1.0", "0.001", []) ==
              {:error, :not_found}
   end
 
@@ -131,7 +131,7 @@ defmodule Ultramoist.OrderTest do
 
     priv_key = :crypto.hash(:sha256, "order test private key")
 
-    assert Ultramoist.Order.cancel(
+    assert Ultramoist.Orders.Order.cancel(
              asset_index: 0,
              order_id: 99,
              priv_key: priv_key,

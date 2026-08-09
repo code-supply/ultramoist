@@ -1,4 +1,4 @@
-defmodule Ultramoist.Order do
+defmodule Ultramoist.Orders.Order do
   @moduledoc false
 
   # @spec ORD-DATA-001

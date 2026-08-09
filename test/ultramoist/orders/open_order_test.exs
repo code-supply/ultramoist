@@ -1,4 +1,4 @@
-defmodule Ultramoist.OpenOrderTest do
+defmodule Ultramoist.Orders.OpenOrderTest do
   use ExUnit.Case, async: true
 
   test "parses a raw open order into named fields, with prices and size as Decimal and timestamp as NaiveDateTime" do
@@ -12,7 +12,7 @@ defmodule Ultramoist.OpenOrderTest do
       "origSz" => "250"
     }
 
-    assert Ultramoist.OpenOrder.parse(raw) == %Ultramoist.OpenOrder{
+    assert Ultramoist.Orders.OpenOrder.parse(raw) == %Ultramoist.Orders.OpenOrder{
              coin: "LDO",
              side: "B",
              limit_price: Decimal.new("0.373"),
