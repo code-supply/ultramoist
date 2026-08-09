@@ -1,6 +1,8 @@
 defmodule Ultramoist.WebSocket.MintTransport do
   @moduledoc false
 
+  require Mint.HTTP
+
   @behaviour Ultramoist.WebSocket.Transport
 
   alias Ultramoist.WebSocket.MintTransport.Loop
@@ -45,7 +47,7 @@ defmodule Ultramoist.WebSocket.MintTransport do
 
   defp await_upgrade(conn, ref, acc \\ %{}) do
     receive do
-      message ->
+      message when Mint.HTTP.is_connection_message(conn, message) ->
         case Mint.WebSocket.stream(conn, message) do
           {:ok, conn, responses} ->
             acc = collect_upgrade_responses(acc, ref, responses)
