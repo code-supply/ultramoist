@@ -15,13 +15,13 @@ defmodule Ultramoist.WebSocket do
     GenServer.start_link(__MODULE__, init_opts, gen_opts)
   end
 
-  def status(pid), do: GenServer.call(pid, :status)
+  def status(pid), do: GenServer.call(pid, :status, :infinity)
 
   def subscribe(pid, key, subscription, callback) do
-    GenServer.call(pid, {:subscribe, key, subscription, callback})
+    GenServer.call(pid, {:subscribe, key, subscription, callback}, :infinity)
   end
 
-  def unsubscribe(pid, key), do: GenServer.call(pid, {:unsubscribe, key})
+  def unsubscribe(pid, key), do: GenServer.call(pid, {:unsubscribe, key}, :infinity)
 
   @impl true
   def init(opts) do
