@@ -118,6 +118,12 @@ defmodule Ultramoist.WebSocket do
     {:noreply, %{state | conn: conn}}
   end
 
+  # @spec WS-API-009
+  @impl true
+  def handle_info({:ws, _stale_conn, _event}, state) do
+    {:noreply, state}
+  end
+
   defp send_envelope(state, method, subscription) do
     frame = JSON.encode!(%{"method" => method, "subscription" => subscription})
     state.transport.send_frame(state.conn, frame)

@@ -109,6 +109,20 @@ defmodule Ultramoist.WebSocketTest do
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
+  # @spec WS-API-009
+  test "ignores a stale event from a superseded connection instead of crashing" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, _conn, _url}
+    assert Ultramoist.WebSocket.status(pid) == :connected
+
+    send(pid, {:ws, make_ref(), :disconnected})
+
+    assert Process.alive?(pid)
+    assert Ultramoist.WebSocket.status(pid) == :connected
+  end
+
   # @spec WS-API-004
   test "subscribing with an existing key is a no-op" do
     {:ok, _agent} = TestTransport.start(self())
