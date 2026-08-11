@@ -32,6 +32,21 @@ defmodule Ultramoist.Orders.Order do
     {:ok, order_id}
   end
 
+  # @spec LEV-DATA-001
+  def build_update_leverage_action(opts) do
+    [
+      type: "updateLeverage",
+      asset: Keyword.fetch!(opts, :asset_index),
+      isCross: Keyword.fetch!(opts, :is_cross),
+      leverage: Keyword.fetch!(opts, :leverage)
+    ]
+  end
+
+  # @spec LEV-DATA-001
+  def parse_update_leverage_response(%{"response" => %{"type" => "default"}}) do
+    :ok
+  end
+
   # @spec ORD-DATA-004
   def build_cancel_action(asset_index, order_id) do
     [type: "cancel", cancels: [[a: asset_index, o: order_id]]]
@@ -78,6 +93,24 @@ defmodule Ultramoist.Orders.Order do
     |> Decimal.round(size_decimals, :down)
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
+  end
+
+  # @spec LEV-DATA-002
+  def update_leverage(cache_pid, coin, opts) do
+    with {:ok, %{asset_index: asset_index}} <- Ultramoist.AssetCache.lookup(cache_pid, coin) do
+      action =
+        build_update_leverage_action(
+          asset_index: asset_index,
+          is_cross: Keyword.fetch!(opts, :is_cross),
+          leverage: Keyword.fetch!(opts, :leverage)
+        )
+
+      submit_opts = Keyword.drop(opts, [:is_cross, :leverage])
+
+      with {:ok, response} <- sign_and_submit(action, submit_opts) do
+        parse_update_leverage_response(response)
+      end
+    end
   end
 
   defp to_decimal(%Decimal{} = value), do: value

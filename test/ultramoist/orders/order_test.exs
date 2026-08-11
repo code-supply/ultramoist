@@ -54,6 +54,30 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.parse_place_response(response) == {:ok, 12345}
   end
 
+  # @spec LEV-DATA-001
+  test "builds an updateLeverage action from an asset index, cross-margin flag, and leverage value" do
+    assert Ultramoist.Orders.Order.build_update_leverage_action(
+             asset_index: 0,
+             is_cross: true,
+             leverage: 5
+           ) == [
+             type: "updateLeverage",
+             asset: 0,
+             isCross: true,
+             leverage: 5
+           ]
+  end
+
+  # @spec LEV-DATA-001
+  test "parses a successful updateLeverage response into confirmation" do
+    response = %{
+      "status" => "ok",
+      "response" => %{"type" => "default", "data" => %{}}
+    }
+
+    assert Ultramoist.Orders.Order.parse_update_leverage_response(response) == :ok
+  end
+
   # @spec ORD-DATA-004
   test "builds a cancel action from an asset index and order id" do
     assert Ultramoist.Orders.Order.build_cancel_action(0, 12345) == [
@@ -116,6 +140,33 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 99}
+  end
+
+  # @spec LEV-DATA-002
+  test "sets leverage for a known coin: resolves asset index, signs, submits, returns confirmation" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    exchange_stub = fn _action, _opts ->
+      {:ok, %{"status" => "ok", "response" => %{"type" => "default", "data" => %{}}}}
+    end
+
+    priv_key = :crypto.hash(:sha256, "leverage test private key")
+
+    assert Ultramoist.Orders.Order.update_leverage(cache_pid, "BTC",
+             is_cross: true,
+             leverage: 5,
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == :ok
   end
 
   # @spec ORD-API-002
