@@ -78,6 +78,14 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.parse_update_leverage_response(response) == :ok
   end
 
+  # @spec LEV-DATA-001
+  test "parses a rejected updateLeverage response into the exchange's rejection reason" do
+    response = %{"status" => "err", "response" => "Invalid leverage value"}
+
+    assert Ultramoist.Orders.Order.parse_update_leverage_response(response) ==
+             {:error, "Invalid leverage value"}
+  end
+
   # @spec ORD-DATA-004
   test "builds a cancel action from an asset index and order id" do
     assert Ultramoist.Orders.Order.build_cancel_action(0, 12345) == [

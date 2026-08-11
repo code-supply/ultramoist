@@ -47,6 +47,10 @@ defmodule Ultramoist.Orders.Order do
     :ok
   end
 
+  def parse_update_leverage_response(%{"status" => "err", "response" => reason}) do
+    {:error, reason}
+  end
+
   # @spec ORD-DATA-004
   def build_cancel_action(asset_index, order_id) do
     [type: "cancel", cancels: [[a: asset_index, o: order_id]]]
