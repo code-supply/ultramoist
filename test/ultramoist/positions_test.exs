@@ -2,7 +2,15 @@ defmodule Ultramoist.PositionsTest do
   use ExUnit.Case, async: true
 
   test "fetches a user's positions and parses them into structs" do
-    raw = %{"position" => %{"coin" => "LDO", "szi" => "3250.0"}, "type" => "oneWay"}
+    raw = %{
+      "position" => %{
+        "coin" => "LDO",
+        "szi" => "3250.0",
+        "entryPx" => "0.29601",
+        "unrealizedPnl" => "1.1525"
+      },
+      "type" => "oneWay"
+    }
 
     stub = fn %{"type" => "clearinghouseState", "user" => "0xabc"}, _opts ->
       {:ok, %{"assetPositions" => [raw]}}
