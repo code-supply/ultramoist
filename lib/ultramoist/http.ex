@@ -3,16 +3,20 @@ defmodule Ultramoist.Http do
 
   @behaviour Ultramoist.Http.Client
 
+  # doubles Req's own 15_000ms default - real testnet latency has been observed
+  # exceeding that default under load
+  @receive_timeout 30_000
+
   @impl true
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    unwrap(Req.post(base_url <> "/info", json: body))
+    unwrap(Req.post(base_url <> "/info", json: body, receive_timeout: @receive_timeout))
   end
 
   @impl true
   def stats_request(type, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    unwrap(Req.get(base_url <> "/" <> type))
+    unwrap(Req.get(base_url <> "/" <> type, receive_timeout: @receive_timeout))
   end
 
   @impl true
@@ -29,7 +33,7 @@ defmodule Ultramoist.Http do
       "vaultAddress" => vault_address
     }
 
-    unwrap(Req.post(base_url <> "/exchange", json: body))
+    unwrap(Req.post(base_url <> "/exchange", json: body, receive_timeout: @receive_timeout))
   end
 
   defp to_json(keyword_list) when is_list(keyword_list) do
