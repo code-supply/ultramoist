@@ -10,7 +10,14 @@ defmodule Ultramoist.Http do
   @impl true
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    unwrap(Req.post(base_url <> "/info", json: body, receive_timeout: @receive_timeout))
+
+    unwrap(
+      Req.post(base_url <> "/info",
+        json: body,
+        receive_timeout: @receive_timeout,
+        retry: :transient
+      )
+    )
   end
 
   @impl true
