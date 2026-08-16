@@ -22,4 +22,10 @@ defmodule Ultramoist.SubscriptionTest do
              {"userNonFundingLedgerUpdates:0xabc",
               %{"type" => "userNonFundingLedgerUpdates", "user" => "0xabc"}}
   end
+
+  # @spec SUB-DATA-004
+  test "builds a userFundings subscription request and dedup key for a user" do
+    assert Ultramoist.Subscription.user_fundings("0xabc") ==
+             {"userFundings:0xabc", %{"type" => "userFundings", "user" => "0xabc"}}
+  end
 end

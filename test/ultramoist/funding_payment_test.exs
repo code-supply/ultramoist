@@ -25,6 +25,26 @@ defmodule Ultramoist.FundingPaymentTest do
            }
   end
 
+  test "parses a flat WS userFundings record (no delta wrapper), captured live from testnet" do
+    raw = %{
+      "coin" => "ALGO",
+      "fundingRate" => "0.0000125",
+      "nSamples" => nil,
+      "szi" => "10500.0",
+      "time" => 1_786_737_600_036,
+      "usdc" => "-0.010403"
+    }
+
+    assert Ultramoist.FundingPayment.parse(raw) == %Ultramoist.FundingPayment{
+             coin: "ALGO",
+             amount: Decimal.new("-0.010403"),
+             size: Decimal.new("10500.0"),
+             funding_rate: Decimal.new("0.0000125"),
+             sample_count: nil,
+             time: ~N[2026-08-14 20:00:00.036]
+           }
+  end
+
   test "parses a nil sample_count" do
     raw = %{
       "delta" => %{

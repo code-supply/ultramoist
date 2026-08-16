@@ -18,6 +18,11 @@ defmodule Ultramoist.Subscription do
     build("userNonFundingLedgerUpdates", [{"user", user}])
   end
 
+  # @spec SUB-DATA-004
+  def user_fundings(user) do
+    build("userFundings", [{"user", user}])
+  end
+
   defp build(type, params) do
     key = Enum.join([type | Enum.map(params, fn {_field, value} -> value end)], ":")
     {key, Map.new([{"type", type} | params])}
