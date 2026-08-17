@@ -44,8 +44,7 @@ defmodule Ultramoist.WebSocket do
 
   @impl true
   def handle_continue(:connect, state) do
-    {:ok, conn} = state.transport.open(state.url, self())
-    {:noreply, %{state | conn: conn}}
+    {:noreply, attempt_connect(state)}
   end
 
   @impl true
@@ -114,14 +113,25 @@ defmodule Ultramoist.WebSocket do
   end
 
   def handle_info(:reconnect, state) do
-    {:ok, conn} = state.transport.open(state.url, self())
-    {:noreply, %{state | conn: conn}}
+    {:noreply, attempt_connect(state)}
   end
 
   # @spec WS-API-009
   @impl true
   def handle_info({:ws, _stale_conn, _event}, state) do
     {:noreply, state}
+  end
+
+  defp attempt_connect(state) do
+    case state.transport.open(state.url, self()) do
+      {:ok, conn} ->
+        %{state | conn: conn}
+
+      {:error, _reason} ->
+        delay = state.backoff_delay.(state.reconnect_attempts)
+        Process.send_after(self(), :reconnect, delay)
+        %{state | status: :reconnecting, reconnect_attempts: state.reconnect_attempts + 1}
+    end
   end
 
   defp send_envelope(state, method, subscription) do

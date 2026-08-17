@@ -6,25 +6,41 @@ defmodule Ultramoist.WebSocketTest do
 
     def start(test_pid, opts \\ []) do
       auto_connect = Keyword.get(opts, :auto_connect, true)
+      fail_next_open = Keyword.get(opts, :fail_next_open, false)
 
       Agent.start_link(
-        fn -> %{conn: nil, test_pid: test_pid, auto_connect: auto_connect} end,
+        fn ->
+          %{
+            conn: nil,
+            test_pid: test_pid,
+            auto_connect: auto_connect,
+            fail_next_open: fail_next_open
+          }
+        end,
         name: __MODULE__
       )
     end
 
     @impl true
     def open(url, owner) do
-      conn = make_ref()
+      %{test_pid: test_pid, auto_connect: auto_connect, fail_next_open: fail_next_open} =
+        Agent.get_and_update(__MODULE__, fn s -> {s, %{s | fail_next_open: false}} end)
 
-      %{test_pid: test_pid, auto_connect: auto_connect} =
-        Agent.get_and_update(__MODULE__, fn s -> {s, %{s | conn: conn}} end)
+      if fail_next_open do
+        send(test_pid, {:transport_open_failed, url})
+        {:error, :connection_refused}
+      else
+        conn = make_ref()
+        Agent.update(__MODULE__, &%{&1 | conn: conn})
 
-      if auto_connect, do: send(owner, {:ws, conn, :connected})
-      send(test_pid, {:transport_opened, conn, url})
+        if auto_connect, do: send(owner, {:ws, conn, :connected})
+        send(test_pid, {:transport_opened, conn, url})
 
-      {:ok, conn}
+        {:ok, conn}
+      end
     end
+
+    def fail_next_open, do: Agent.update(__MODULE__, &%{&1 | fail_next_open: true})
 
     @impl true
     def send_frame(_conn, frame) do
@@ -103,6 +119,30 @@ defmodule Ultramoist.WebSocketTest do
     assert_receive {:transport_opened, conn, _url}
 
     send(pid, {:ws, conn, :disconnected})
+    assert Ultramoist.WebSocket.status(pid) == :reconnecting
+
+    assert_receive {:transport_opened, _reconnected_conn, _url}
+    assert Ultramoist.WebSocket.status(pid) == :connected
+  end
+
+  # @spec WS-API-010
+  test "schedules another backoff retry instead of crashing when a reconnect attempt fails" do
+    {:ok, _agent} = TestTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(
+        url: "ws://fake",
+        transport: TestTransport,
+        backoff_delay: fn _attempt -> 0 end
+      )
+
+    assert_receive {:transport_opened, conn, _url}
+
+    TestTransport.fail_next_open()
+    send(pid, {:ws, conn, :disconnected})
+
+    assert_receive {:transport_open_failed, _url}
+    assert Process.alive?(pid)
     assert Ultramoist.WebSocket.status(pid) == :reconnecting
 
     assert_receive {:transport_opened, _reconnected_conn, _url}
