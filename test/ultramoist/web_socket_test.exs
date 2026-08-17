@@ -178,6 +178,41 @@ defmodule Ultramoist.WebSocketTest do
     refute_receive {:frame_sent, _}
   end
 
+  # @spec SUB-API-004
+  test "sends the subscribe envelope only once when a second key subscribes with identical content" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback)
+    assert_receive {:frame_sent, _frame}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback)
+    refute_receive {:frame_sent, _}
+  end
+
+  # @spec SUB-API-005
+  test "sends the unsubscribe envelope only after the last subscriber for that content unsubscribes" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback)
+    assert_receive {:frame_sent, _subscribe_frame}
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback)
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, {:tab, 1})
+    refute_receive {:frame_sent, _}
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, {:tab, 2})
+    assert_receive {:frame_sent, frame}
+    assert JSON.decode!(frame) == %{"method" => "unsubscribe", "subscription" => subscription}
+  end
+
   # @spec WS-API-003
   test "resubscribes to all active subscriptions after reconnecting" do
     {:ok, _agent} = TestTransport.start(self())
@@ -201,6 +236,34 @@ defmodule Ultramoist.WebSocketTest do
     assert_receive {:transport_opened, _reconnected_conn, _url}
 
     assert_receive {:frame_sent, _frame}
+  end
+
+  # @spec WS-API-003
+  test "resubscribes only once per unique content after reconnecting, even with multiple local subscribers" do
+    {:ok, _agent} = TestTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(
+        url: "ws://fake",
+        transport: TestTransport,
+        backoff_delay: fn _attempt -> 0 end
+      )
+
+    assert_receive {:transport_opened, conn, _url}
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills"}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback)
+    assert_receive {:frame_sent, _frame}
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback)
+    refute_receive {:frame_sent, _}
+
+    send(pid, {:ws, conn, :disconnected})
+    assert_receive {:transport_opened, _reconnected_conn, _url}
+
+    assert_receive {:frame_sent, _frame}
+    refute_receive {:frame_sent, _}
   end
 
   # @spec SUB-API-001

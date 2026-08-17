@@ -64,19 +64,25 @@ defmodule Ultramoist.WebSocket do
   end
 
   # @spec SUB-API-001
+  # @spec SUB-API-004
   def handle_call({:subscribe, key, subscription, callback}, _from, state) do
-    if state.status == :connected, do: send_envelope(state, "subscribe", subscription)
+    already_subscribed? = has_subscription_content?(state.subscriptions, subscription)
+
+    if state.status == :connected and not already_subscribed?,
+      do: send_envelope(state, "subscribe", subscription)
 
     entry = %{subscription: subscription, callback: callback}
     {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, entry)}}
   end
 
   # @spec SUB-API-003
+  # @spec SUB-API-005
   @impl true
   def handle_call({:unsubscribe, key}, _from, state) do
     {entry, subscriptions} = Map.pop(state.subscriptions, key)
+    still_subscribed? = entry && has_subscription_content?(subscriptions, entry.subscription)
 
-    if entry, do: send_envelope(state, "unsubscribe", entry.subscription)
+    if entry && not still_subscribed?, do: send_envelope(state, "unsubscribe", entry.subscription)
 
     {:reply, :ok, %{state | subscriptions: subscriptions}}
   end
@@ -85,9 +91,10 @@ defmodule Ultramoist.WebSocket do
   # @spec WS-API-003
   @impl true
   def handle_info({:ws, conn, :connected}, %{conn: conn} = state) do
-    Enum.each(state.subscriptions, fn {_key, %{subscription: subscription}} ->
-      send_envelope(state, "subscribe", subscription)
-    end)
+    state.subscriptions
+    |> Enum.map(fn {_key, %{subscription: subscription}} -> subscription end)
+    |> Enum.uniq()
+    |> Enum.each(fn subscription -> send_envelope(state, "subscribe", subscription) end)
 
     {:noreply, %{state | status: :connected, reconnect_attempts: 0}}
   end
@@ -132,6 +139,10 @@ defmodule Ultramoist.WebSocket do
         Process.send_after(self(), :reconnect, delay)
         %{state | status: :reconnecting, reconnect_attempts: state.reconnect_attempts + 1}
     end
+  end
+
+  defp has_subscription_content?(subscriptions, subscription) do
+    Enum.any?(subscriptions, fn {_key, entry} -> entry.subscription == subscription end)
   end
 
   defp send_envelope(state, method, subscription) do
