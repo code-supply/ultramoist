@@ -8,17 +8,29 @@ defmodule Ultramoist.WebSocketTest do
       auto_connect = Keyword.get(opts, :auto_connect, true)
       fail_next_open = Keyword.get(opts, :fail_next_open, false)
 
-      Agent.start_link(
-        fn ->
-          %{
-            conn: nil,
-            test_pid: test_pid,
-            auto_connect: auto_connect,
-            fail_next_open: fail_next_open
-          }
-        end,
-        name: __MODULE__
-      )
+      {:ok, pid} =
+        result =
+        Agent.start_link(
+          fn ->
+            %{
+              conn: nil,
+              test_pid: test_pid,
+              auto_connect: auto_connect,
+              fail_next_open: fail_next_open
+            }
+          end,
+          name: __MODULE__
+        )
+
+      ExUnit.Callbacks.on_exit(fn ->
+        try do
+          Agent.stop(pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      result
     end
 
     @impl true
