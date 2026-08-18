@@ -7,7 +7,8 @@ defmodule Ultramoist.PositionsTest do
         "coin" => "LDO",
         "szi" => "3250.0",
         "entryPx" => "0.29601",
-        "unrealizedPnl" => "1.1525"
+        "unrealizedPnl" => "1.1525",
+        "marginUsed" => "241.5"
       },
       "type" => "oneWay"
     }
