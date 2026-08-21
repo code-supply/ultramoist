@@ -8,7 +8,8 @@ defmodule Ultramoist.PositionsTest do
         "szi" => "3250.0",
         "entryPx" => "0.29601",
         "unrealizedPnl" => "1.1525",
-        "marginUsed" => "241.5"
+        "marginUsed" => "241.5",
+        "leverage" => %{"type" => "cross", "value" => 20}
       },
       "type" => "oneWay"
     }
