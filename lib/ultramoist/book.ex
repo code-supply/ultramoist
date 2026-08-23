@@ -2,6 +2,7 @@ defmodule Ultramoist.Book do
   @moduledoc false
 
   # @spec SCAN-API-002
+  # @spec SCAN-API-002a
   def fetch(coin, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
@@ -14,6 +15,8 @@ defmodule Ultramoist.Book do
          bids: Enum.map(bids, &Ultramoist.Book.Level.parse/1),
          asks: Enum.map(asks, &Ultramoist.Book.Level.parse/1)
        }}
+    else
+      {:ok, nil} -> {:error, :not_found}
     end
   end
 end

@@ -23,4 +23,14 @@ defmodule Ultramoist.BookTest do
                 ]
               }}
   end
+
+  # @spec SCAN-API-002a
+  test "returns an error when the coin doesn't exist, rather than a nil book" do
+    stub = fn %{"type" => "l2Book", "coin" => "NOTACOIN"}, _opts -> {:ok, nil} end
+
+    assert Ultramoist.Book.fetch("NOTACOIN",
+             base_url: "unused",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) == {:error, :not_found}
+  end
 end
