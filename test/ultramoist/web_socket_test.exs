@@ -278,6 +278,69 @@ defmodule Ultramoist.WebSocketTest do
     refute_receive {:frame_sent, _}
   end
 
+  # @spec SUB-API-006
+  test "replays the last matching message to a subscriber who joins existing content" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, conn, _url}
+
+    test_pid = self()
+    callback1 = fn message -> send(test_pid, {:callback1_invoked, message}) end
+    callback2 = fn message -> send(test_pid, {:callback2_invoked, message}) end
+    subscription = %{"type" => "clearinghouseState", "user" => "0xabc", "dex" => ""}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback1)
+    assert_receive {:frame_sent, _frame}
+
+    incoming =
+      JSON.encode!(%{
+        "channel" => "clearinghouseState",
+        "data" => %{"user" => "0xabc", "dex" => "", "clearinghouseState" => %{}}
+      })
+
+    send(pid, {:ws, conn, {:frame, incoming}})
+    assert_receive {:callback1_invoked, _message}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback2)
+    refute_receive {:frame_sent, _}
+
+    assert_receive {:callback2_invoked, decoded}
+    assert decoded == JSON.decode!(incoming)
+  end
+
+  # @spec SUB-API-007
+  test "does not replay stale data to a new subscriber after every previous subscriber for that content has left" do
+    {:ok, _agent} = TestTransport.start(self())
+    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: TestTransport)
+
+    assert_receive {:transport_opened, conn, _url}
+
+    test_pid = self()
+    callback1 = fn message -> send(test_pid, {:callback1_invoked, message}) end
+    callback2 = fn message -> send(test_pid, {:callback2_invoked, message}) end
+    subscription = %{"type" => "clearinghouseState", "user" => "0xabc", "dex" => ""}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback1)
+    assert_receive {:frame_sent, _subscribe_frame}
+
+    incoming =
+      JSON.encode!(%{
+        "channel" => "clearinghouseState",
+        "data" => %{"user" => "0xabc", "dex" => "", "clearinghouseState" => %{}}
+      })
+
+    send(pid, {:ws, conn, {:frame, incoming}})
+    assert_receive {:callback1_invoked, _message}
+
+    :ok = Ultramoist.WebSocket.unsubscribe(pid, {:tab, 1})
+    assert_receive {:frame_sent, _unsubscribe_frame}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback2)
+    assert_receive {:frame_sent, _fresh_subscribe_frame}
+    refute_receive {:callback2_invoked, _}
+  end
+
   # @spec SUB-API-001
   test "subscribe wraps the subscription in an envelope, sends it, and stores the callback" do
     {:ok, _agent} = TestTransport.start(self())

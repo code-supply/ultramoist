@@ -36,7 +36,8 @@ defmodule Ultramoist.WebSocket do
       status: :disconnected,
       reconnect_attempts: 0,
       backoff_delay: backoff_delay,
-      subscriptions: %{}
+      subscriptions: %{},
+      last_messages: %{}
     }
 
     {:ok, state, {:continue, :connect}}
@@ -65,11 +66,14 @@ defmodule Ultramoist.WebSocket do
 
   # @spec SUB-API-001
   # @spec SUB-API-004
+  # @spec SUB-API-006
   def handle_call({:subscribe, key, subscription, callback}, _from, state) do
     already_subscribed? = has_subscription_content?(state.subscriptions, subscription)
 
     if state.status == :connected and not already_subscribed?,
       do: send_envelope(state, "subscribe", subscription)
+
+    if cached = Map.get(state.last_messages, subscription), do: callback.(cached)
 
     entry = %{subscription: subscription, callback: callback}
     {:reply, :ok, %{state | subscriptions: Map.put(state.subscriptions, key, entry)}}
@@ -77,14 +81,21 @@ defmodule Ultramoist.WebSocket do
 
   # @spec SUB-API-003
   # @spec SUB-API-005
+  # @spec SUB-API-007
   @impl true
   def handle_call({:unsubscribe, key}, _from, state) do
     {entry, subscriptions} = Map.pop(state.subscriptions, key)
     still_subscribed? = entry && has_subscription_content?(subscriptions, entry.subscription)
 
-    if entry && not still_subscribed?, do: send_envelope(state, "unsubscribe", entry.subscription)
+    last_messages =
+      if entry && not still_subscribed? do
+        send_envelope(state, "unsubscribe", entry.subscription)
+        Map.delete(state.last_messages, entry.subscription)
+      else
+        state.last_messages
+      end
 
-    {:reply, :ok, %{state | subscriptions: subscriptions}}
+    {:reply, :ok, %{state | subscriptions: subscriptions, last_messages: last_messages}}
   end
 
   # @spec WS-API-001
@@ -100,15 +111,23 @@ defmodule Ultramoist.WebSocket do
   end
 
   # @spec SUB-API-002
+  # @spec SUB-API-006
   @impl true
   def handle_info({:ws, conn, {:frame, text}}, %{conn: conn} = state) do
     message = JSON.decode!(text)
 
-    Enum.each(state.subscriptions, fn {_key, %{subscription: subscription, callback: callback}} ->
-      if matches?(subscription, message), do: callback.(message)
-    end)
+    last_messages =
+      Enum.reduce(state.subscriptions, state.last_messages, fn
+        {_key, %{subscription: subscription, callback: callback}}, acc ->
+          if matches?(subscription, message) do
+            callback.(message)
+            Map.put(acc, subscription, message)
+          else
+            acc
+          end
+      end)
 
-    {:noreply, state}
+    {:noreply, %{state | last_messages: last_messages}}
   end
 
   # @spec WS-API-002
