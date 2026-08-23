@@ -20,8 +20,18 @@ defmodule Ultramoist.UniverseTest do
     assert Ultramoist.Universe.fetch(base_url: "unused", http: {Ultramoist.FakeHttp, stub: stub}) ==
              {:ok,
               [
-                Ultramoist.Universe.Asset.parse(Enum.at(universe_meta, 0), Enum.at(contexts, 0)),
-                Ultramoist.Universe.Asset.parse(Enum.at(universe_meta, 1), Enum.at(contexts, 1))
+                %Ultramoist.Universe.Asset{
+                  name: "BTC",
+                  is_delisted: false,
+                  day_volume: Decimal.new("1000000"),
+                  mark_price: Decimal.new("50000")
+                },
+                %Ultramoist.Universe.Asset{
+                  name: "OLDCOIN",
+                  is_delisted: true,
+                  day_volume: Decimal.new("500"),
+                  mark_price: Decimal.new("1")
+                }
               ]}
   end
 end
