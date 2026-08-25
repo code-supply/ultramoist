@@ -26,12 +26,17 @@ defmodule Ultramoist.Secp256k1 do
     :crypto.mod_pow(a, div(@field_prime + 1, 4), @field_prime) |> :binary.decode_unsigned()
   end
 
+  def point_add(:infinity, point), do: point
+  def point_add(point, :infinity), do: point
+
   def point_add({x1, y1}, {x1, y1}) do
     slope = Integer.mod(3 * x1 * x1 * mod_inv(2 * y1, @field_prime), @field_prime)
     x3 = Integer.mod(slope * slope - 2 * x1, @field_prime)
     y3 = Integer.mod(slope * (x1 - x3) - y1, @field_prime)
     {x3, y3}
   end
+
+  def point_add({x1, y1}, {x1, y2}) when y1 != y2, do: :infinity
 
   def point_add({x1, y1}, {x2, y2}) do
     slope = Integer.mod((y2 - y1) * mod_inv(x2 - x1, @field_prime), @field_prime)

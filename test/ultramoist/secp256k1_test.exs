@@ -66,6 +66,24 @@ defmodule Ultramoist.Secp256k1Test do
     assert Ultramoist.Secp256k1.point_add(g, g) == two_g
   end
 
+  @field_prime 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+
+  # @spec SIGN-DATA-003d
+  test "adding a point to its own negation gives the point at infinity" do
+    g = {@generator_x, @generator_y}
+    negated_g = {@generator_x, @field_prime - @generator_y}
+
+    assert Ultramoist.Secp256k1.point_add(g, negated_g) == :infinity
+  end
+
+  # @spec SIGN-DATA-003e
+  test "the point at infinity is the identity element for point addition" do
+    g = {@generator_x, @generator_y}
+
+    assert Ultramoist.Secp256k1.point_add(:infinity, g) == g
+    assert Ultramoist.Secp256k1.point_add(g, :infinity) == g
+  end
+
   # @spec SIGN-DATA-003c
   test "multiplies the generator point by a scalar" do
     g = {@generator_x, @generator_y}
