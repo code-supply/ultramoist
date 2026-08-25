@@ -9,6 +9,12 @@ defmodule Ultramoist.Signer do
   def mainnet_source, do: "a"
   def testnet_source, do: "b"
 
+  def agent_address(priv_key) do
+    {pub_key, _priv} = :crypto.generate_key(:ecdh, :secp256k1, priv_key)
+    <<4, pub_x::256, pub_y::256>> = pub_key
+    Keccak.hash256(<<pub_x::256, pub_y::256>>) |> binary_part(12, 20)
+  end
+
   def sign_l1_action(action, opts) do
     nonce = Keyword.fetch!(opts, :nonce)
     source = Keyword.fetch!(opts, :source)

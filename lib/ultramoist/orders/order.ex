@@ -1,6 +1,8 @@
 defmodule Ultramoist.Orders.Order do
   @moduledoc false
 
+  require Logger
+
   # @spec ORD-DATA-001
   def build_place_action(asset_index, is_buy, limit_px, sz) do
     [
@@ -170,6 +172,12 @@ defmodule Ultramoist.Orders.Order do
       "s" => "0x" <> Base.encode16(signature_s, case: :lower),
       "v" => recovery_v
     }
+
+    agent_address = Ultramoist.Signer.agent_address(priv_key) |> Base.encode16(case: :lower)
+
+    Logger.info(
+      "Signing as agent 0x#{agent_address}, nonce #{nonce}, r=#{signature["r"]}, s=#{signature["s"]}, v=#{recovery_v}"
+    )
 
     request_opts =
       opts

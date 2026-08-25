@@ -150,6 +150,43 @@ defmodule Ultramoist.Orders.OrderTest do
            ) == {:ok, 99}
   end
 
+  test "logs the derived agent address before submitting, so a rejected signer can be cross-checked" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{"statuses" => [%{"resting" => %{"oid" => 99}}]}
+         }
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "log test private key")
+    expected_address = Ultramoist.Signer.agent_address(priv_key) |> Base.encode16(case: :lower)
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        Ultramoist.Orders.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
+          priv_key: priv_key,
+          source: Ultramoist.Signer.testnet_source(),
+          http: {Ultramoist.FakeHttp, stub: exchange_stub}
+        )
+      end)
+
+    assert log =~ expected_address
+  end
+
   # @spec LEV-DATA-002
   test "sets leverage for a known coin: resolves asset index, signs, submits, returns confirmation" do
     meta_stub = fn %{"type" => "meta"}, _opts ->

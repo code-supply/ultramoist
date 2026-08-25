@@ -72,4 +72,13 @@ defmodule Ultramoist.SignerTest do
 
     assert :crypto.verify(:ecdsa, :sha256, {:digest, digest}, der, [pub_key, :secp256k1])
   end
+
+  # @spec L1S-DATA-003
+  test "derives the Ethereum address that owns a given private key" do
+    {pub_key, _priv} = :crypto.generate_key(:ecdh, :secp256k1, @priv_key)
+    <<4, pub_x::256, pub_y::256>> = pub_key
+    expected = Ultramoist.Keccak.hash256(<<pub_x::256, pub_y::256>>) |> binary_part(12, 20)
+
+    assert Ultramoist.Signer.agent_address(@priv_key) == expected
+  end
 end
