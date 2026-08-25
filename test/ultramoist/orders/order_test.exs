@@ -193,6 +193,34 @@ defmodule Ultramoist.Orders.OrderTest do
              {:error, :not_found}
   end
 
+  # @spec NONCE-API-004
+  test "signs and submits using an injected nonce instead of the default allocator" do
+    test_pid = self()
+
+    exchange_stub = fn _action, opts ->
+      send(test_pid, {:nonce_used, Keyword.fetch!(opts, :nonce)})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.cancel(
+             asset_index: 0,
+             order_id: 99,
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub},
+             nonce: fn -> 424_242 end
+           ) == :ok
+
+    assert_received {:nonce_used, 424_242}
+  end
+
   # @spec ORD-API-003
   test "cancels an order: signs, submits, and returns confirmation" do
     exchange_stub = fn _action, _opts ->

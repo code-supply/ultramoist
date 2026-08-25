@@ -151,7 +151,11 @@ defmodule Ultramoist.Orders.Order do
     source = Keyword.fetch!(opts, :source)
     vault_address = Keyword.get(opts, :vault_address)
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
-    nonce = System.system_time(:millisecond)
+
+    next_nonce =
+      Keyword.get(opts, :nonce, &Ultramoist.NonceAllocator.next_from_default_allocator/0)
+
+    nonce = next_nonce.()
 
     {signature_r, signature_s, recovery_v} =
       Ultramoist.Signer.sign_l1_action(action,
@@ -169,7 +173,7 @@ defmodule Ultramoist.Orders.Order do
 
     request_opts =
       opts
-      |> Keyword.drop([:priv_key, :source, :vault_address, :http])
+      |> Keyword.drop([:priv_key, :source, :vault_address, :http, :nonce])
       |> Keyword.merge(http_opts)
       |> Keyword.merge(signature: signature, nonce: nonce, vault_address: vault_address)
 
