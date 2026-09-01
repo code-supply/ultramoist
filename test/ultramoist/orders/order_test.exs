@@ -104,6 +104,24 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.parse_cancel_response(response) == :ok
   end
 
+  # @spec ORD-DATA-007
+  test "parses a rejected cancel response into the exchange's rejection reason" do
+    response = %{
+      "status" => "ok",
+      "response" => %{
+        "type" => "cancel",
+        "data" => %{
+          "statuses" => [
+            %{"error" => "Order was never placed, already canceled, or filled. asset=230"}
+          ]
+        }
+      }
+    }
+
+    assert Ultramoist.Orders.Order.parse_cancel_response(response) ==
+             {:error, "Order was never placed, already canceled, or filled. asset=230"}
+  end
+
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
     assert Ultramoist.Orders.Order.format_price("50000.123456", 5) == "50000"
     assert Ultramoist.Orders.Order.format_price(50000, 5) == "50000"

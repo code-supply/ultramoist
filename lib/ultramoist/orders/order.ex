@@ -63,6 +63,13 @@ defmodule Ultramoist.Orders.Order do
     :ok
   end
 
+  # @spec ORD-DATA-007
+  def parse_cancel_response(%{
+        "response" => %{"data" => %{"statuses" => [%{"error" => reason}]}}
+      }) do
+    {:error, reason}
+  end
+
   # @spec ORD-API-001
   def place_limit(cache_pid, coin, is_buy, limit_px, sz, opts) do
     with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
