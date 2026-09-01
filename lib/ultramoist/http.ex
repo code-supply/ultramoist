@@ -53,6 +53,14 @@ defmodule Ultramoist.Http do
 
   defp to_json(value), do: value
 
-  defp unwrap({:ok, %Req.Response{body: response_body}}), do: {:ok, response_body}
+  defp unwrap({:ok, %Req.Response{status: status, body: response_body}})
+       when status in 200..299 do
+    {:ok, response_body}
+  end
+
+  defp unwrap({:ok, %Req.Response{status: status, body: response_body}}) do
+    {:error, {status, response_body}}
+  end
+
   defp unwrap({:error, reason}), do: {:error, reason}
 end

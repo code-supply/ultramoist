@@ -35,4 +35,23 @@ defmodule Ultramoist.HttpTest do
                base_url: Ultramoist.Config.info_url(:testnet)
              )
   end
+
+  # @spec HTTP-API-004
+  test "returns an error instead of a bare body when the exchange rejects the request outright" do
+    action = %{"type" => "cancel", "cancels" => []}
+
+    signature = %{
+      "r" => "0x" <> String.duplicate("1", 64),
+      "s" => "0x" <> String.duplicate("2", 64),
+      "v" => 27
+    }
+
+    assert {:error, {422, "Failed to deserialize the JSON body into the target type"}} =
+             Ultramoist.Http.exchange_request(action,
+               signature: signature,
+               nonce: "not-a-number",
+               vault_address: nil,
+               base_url: Ultramoist.Config.info_url(:testnet)
+             )
+  end
 end
