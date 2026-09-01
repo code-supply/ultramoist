@@ -16,4 +16,8 @@ defmodule Ultramoist.Mids do
 
   defp fetch_price(mids, coin) when is_map(mids), do: Map.fetch(mids, coin)
   defp fetch_price(_mids, _coin), do: :error
+
+  def parse(mids) do
+    Map.new(mids, fn {coin, price} -> {coin, Decimal.new(price)} end)
+  end
 end

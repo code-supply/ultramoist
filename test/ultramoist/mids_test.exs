@@ -23,4 +23,13 @@ defmodule Ultramoist.MidsTest do
     assert Ultramoist.Mids.fetch("BTC", base_url: "unused", http: {Ultramoist.FakeHttp, stub: stub}) ==
              {:error, :not_found}
   end
+
+  test "parses a raw mids map into decimal prices" do
+    raw = %{"BTC" => "50000.5", "ETH" => "2500.25"}
+
+    assert Ultramoist.Mids.parse(raw) == %{
+             "BTC" => Decimal.new("50000.5"),
+             "ETH" => Decimal.new("2500.25")
+           }
+  end
 end
