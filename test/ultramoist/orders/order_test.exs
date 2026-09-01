@@ -12,6 +12,18 @@ defmodule Ultramoist.Orders.OrderTest do
            ]
   end
 
+  # @spec ORD-DATA-008
+  test "builds a reduce-only order action when closing a position" do
+    assert Ultramoist.Orders.Order.build_place_action(0, true, "100.5", "0.1", reduce_only: true) ==
+             [
+               type: "order",
+               orders: [
+                 [a: 0, b: true, p: "100.5", s: "0.1", r: true, t: [limit: [tif: "Gtc"]]]
+               ],
+               grouping: "na"
+             ]
+  end
+
   # @spec ORD-DATA-002
   test "parses a successful order-placement response into the resulting order id" do
     response = %{
@@ -166,6 +178,49 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 99}
+  end
+
+  # @spec ORD-API-004
+  test "places a reduce-only limit order when reduce_only: true is given" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    test_pid = self()
+
+    exchange_stub = fn action, _opts ->
+      send(test_pid, {:action, action})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{"statuses" => [%{"resting" => %{"oid" => 99}}]}
+         }
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub},
+             reduce_only: true
+           ) == {:ok, 99}
+
+    assert_received {:action, action}
+
+    assert action[:orders] == [
+             [a: 0, b: true, p: "1.0", s: "0.001", r: true, t: [limit: [tif: "Gtc"]]]
+           ]
   end
 
   test "logs the derived agent address before submitting, so a rejected signer can be cross-checked" do

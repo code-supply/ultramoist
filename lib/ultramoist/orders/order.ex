@@ -4,11 +4,14 @@ defmodule Ultramoist.Orders.Order do
   require Logger
 
   # @spec ORD-DATA-001
-  def build_place_action(asset_index, is_buy, limit_px, sz) do
+  # @spec ORD-DATA-008
+  def build_place_action(asset_index, is_buy, limit_px, sz, opts \\ []) do
+    reduce_only = Keyword.get(opts, :reduce_only, false)
+
     [
       type: "order",
       orders: [
-        [a: asset_index, b: is_buy, p: limit_px, s: sz, r: false, t: [limit: [tif: "Gtc"]]]
+        [a: asset_index, b: is_buy, p: limit_px, s: sz, r: reduce_only, t: [limit: [tif: "Gtc"]]]
       ],
       grouping: "na"
     ]
@@ -71,12 +74,17 @@ defmodule Ultramoist.Orders.Order do
   end
 
   # @spec ORD-API-001
+  # @spec ORD-API-004
   def place_limit(cache_pid, coin, is_buy, limit_px, sz, opts) do
     with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
            Ultramoist.AssetCache.lookup(cache_pid, coin) do
       formatted_price = format_price(limit_px, size_decimals)
       formatted_size = format_size(sz, size_decimals)
-      action = build_place_action(asset_index, is_buy, formatted_price, formatted_size)
+
+      action =
+        build_place_action(asset_index, is_buy, formatted_price, formatted_size,
+          reduce_only: Keyword.get(opts, :reduce_only, false)
+        )
 
       with {:ok, response} <- sign_and_submit(action, opts) do
         parse_place_response(response)
