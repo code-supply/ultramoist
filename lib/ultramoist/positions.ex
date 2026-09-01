@@ -12,4 +12,16 @@ defmodule Ultramoist.Positions do
       {:ok, Enum.map(positions, &Ultramoist.Positions.Position.parse/1)}
     end
   end
+
+  def parse(%{
+        "marginSummary" => %{"accountValue" => account_value},
+        "time" => time,
+        "assetPositions" => asset_positions
+      }) do
+    %{
+      positions: Enum.map(asset_positions, &Ultramoist.Positions.Position.parse/1),
+      account_value: account_value,
+      time: time
+    }
+  end
 end
