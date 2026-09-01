@@ -33,4 +33,12 @@ defmodule Ultramoist.BookTest do
              http: {Ultramoist.FakeHttp, stub: stub}
            ) == {:error, :not_found}
   end
+
+  # @spec SCAN-API-002b
+  test "passes through an HTTP error instead of raising, e.g. a rate limit response" do
+    stub = fn %{"type" => "l2Book", "coin" => "BTC"}, _opts -> {:error, {429, nil}} end
+
+    assert Ultramoist.Book.fetch("BTC", base_url: "unused", http: {Ultramoist.FakeHttp, stub: stub}) ==
+             {:error, {429, nil}}
+  end
 end

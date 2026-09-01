@@ -17,6 +17,7 @@ defmodule Ultramoist.Book do
        }}
     else
       {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 end
