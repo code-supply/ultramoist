@@ -66,6 +66,17 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.parse_place_response(response) == {:ok, 12345}
   end
 
+  # @spec ORD-DATA-009
+  test "parses a request rejected before it reached order processing into the exchange's rejection reason" do
+    response = %{
+      "status" => "err",
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+    }
+
+    assert Ultramoist.Orders.Order.parse_place_response(response) ==
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+  end
+
   # @spec LEV-DATA-001
   test "builds an updateLeverage action from an asset index, cross-margin flag, and leverage value" do
     assert Ultramoist.Orders.Order.build_update_leverage_action(

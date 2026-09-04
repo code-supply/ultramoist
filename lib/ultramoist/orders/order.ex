@@ -37,6 +37,11 @@ defmodule Ultramoist.Orders.Order do
     {:ok, order_id}
   end
 
+  # @spec ORD-DATA-009
+  def parse_place_response(%{"status" => "err", "response" => reason}) do
+    {:error, reason}
+  end
+
   # @spec LEV-DATA-001
   def build_update_leverage_action(opts) do
     [
