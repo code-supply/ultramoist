@@ -101,7 +101,7 @@ defmodule Ultramoist.Orders.Order do
     decimal = to_decimal(price)
 
     if Decimal.integer?(decimal) do
-      Decimal.to_string(decimal, :normal)
+      decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
     else
       max_decimals = max(6 - size_decimals, 0)
 

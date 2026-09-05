@@ -150,6 +150,11 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.format_price(50000, 5) == "50000"
   end
 
+  test "strips trailing decimal zeros from a whole-number price, even when the input string carries them" do
+    assert Ultramoist.Orders.Order.format_price("50.00", 2) == "50"
+    assert Ultramoist.Orders.Order.format_price("2500.0", 4) == "2500"
+  end
+
   test "truncates size to the asset's size decimals" do
     assert Ultramoist.Orders.Order.format_size("1.23456789", 5) == "1.23456"
     assert Ultramoist.Orders.Order.format_size(0.001, 3) == "0.001"
@@ -230,7 +235,7 @@ defmodule Ultramoist.Orders.OrderTest do
     assert_received {:action, action}
 
     assert action[:orders] == [
-             [a: 0, b: true, p: "1.0", s: "0.001", r: true, t: [limit: [tif: "Gtc"]]]
+             [a: 0, b: true, p: "1", s: "0.001", r: true, t: [limit: [tif: "Gtc"]]]
            ]
   end
 
