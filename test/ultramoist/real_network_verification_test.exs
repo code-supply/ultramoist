@@ -38,4 +38,39 @@ defmodule Ultramoist.RealNetworkVerificationTest do
                base_url: base_url
              )
   end
+
+  # A known-active Hyperliquid Vault (HLP Strategy A) that reliably has
+  # position changes to report - used only to confirm the real API's
+  # clearinghouseState message still matches the shape consumers parse.
+  @active_vault_address "0xc64cc00b46101bd40aa1c3121195e85c0b0918d8"
+
+  test "a live clearinghouseState subscription delivers a real vault's equity update" do
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(
+        url: Ultramoist.Config.web_socket_url(:testnet),
+        transport: Ultramoist.WebSocket.MintTransport
+      )
+
+    test_pid = self()
+
+    :ok =
+      Ultramoist.WebSocket.subscribe(
+        pid,
+        :vault_equity,
+        %{"type" => "clearinghouseState", "user" => @active_vault_address, "dex" => ""},
+        fn message -> send(test_pid, {:message, message}) end
+      )
+
+    assert_receive {:message,
+                     %{
+                       "channel" => "clearinghouseState",
+                       "data" => %{
+                         "clearinghouseState" => %{
+                           "marginSummary" => %{"accountValue" => _},
+                           "time" => _
+                         }
+                       }
+                     }},
+                    20_000
+  end
 end
