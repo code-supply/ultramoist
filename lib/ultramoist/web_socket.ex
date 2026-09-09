@@ -123,16 +123,22 @@ defmodule Ultramoist.WebSocket do
   def handle_info({:ws, conn, {:frame, text}}, %{conn: conn} = state) do
     message = JSON.decode!(text)
 
-    last_messages =
-      Enum.reduce(state.subscriptions, state.last_messages, fn
-        {_key, %{subscription: subscription, callback: callback}}, acc ->
+    {last_messages, match_count} =
+      Enum.reduce(state.subscriptions, {state.last_messages, 0}, fn
+        {_key, %{subscription: subscription, callback: callback}}, {acc, count} ->
           if matches?(subscription, message) do
             callback.(message)
-            Map.put(acc, subscription, message)
+            {Map.put(acc, subscription, message), count + 1}
           else
-            acc
+            {acc, count}
           end
       end)
+
+    :telemetry.execute([:ultramoist, :web_socket, :frame_received], %{}, %{
+      url: state.url,
+      channel: message["channel"],
+      match_count: match_count
+    })
 
     {:noreply, %{state | last_messages: last_messages}}
   end

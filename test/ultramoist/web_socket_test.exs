@@ -517,6 +517,39 @@ defmodule Ultramoist.WebSocketTest do
                     %{"channel" => "userFills", "data" => %{"fills" => [], "user" => "0xabc"}}}
   end
 
+  # @spec TELEM-API-013
+  test "emits telemetry naming the channel and how many subscriptions a frame matched" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    assert_receive {:transport_opened, conn, _url}
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "userFills:0xabc", subscription, callback)
+    assert_receive {:frame_sent, _frame}
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [
+        [:ultramoist, :web_socket, :frame_received]
+      ])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    incoming =
+      JSON.encode!(%{"channel" => "userFills", "data" => %{"fills" => [], "user" => "0xabc"}})
+
+    send(pid, {:ws, conn, {:frame, incoming}})
+
+    assert_receive {[:ultramoist, :web_socket, :frame_received], ^ref, _measurements, metadata}
+    assert metadata.url == "ws://fake"
+    assert metadata.channel == "userFills"
+    assert metadata.match_count == 1
+  end
+
   # @spec SUB-API-005
   test "does not invoke a same-type subscription's callback when a message arrives for a different user" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())

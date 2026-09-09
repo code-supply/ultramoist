@@ -25,5 +25,6 @@ defmodule Ultramoist.TelemetryTest do
     assert [:ultramoist, :web_socket, :reconnect_scheduled] in events
     assert [:ultramoist, :web_socket, :subscribe] in events
     assert [:ultramoist, :web_socket, :unsubscribe] in events
+    assert [:ultramoist, :web_socket, :frame_received] in events
   end
 end
