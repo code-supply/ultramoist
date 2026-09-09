@@ -10,14 +10,20 @@ defmodule Ultramoist.Http do
   @impl true
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
+    metadata = %{base_url: base_url, type: body["type"]}
 
-    unwrap(
-      Req.post(base_url <> "/info",
-        json: body,
-        receive_timeout: @receive_timeout,
-        retry: :transient
-      )
-    )
+    :telemetry.span([:ultramoist, :http, :info_request], metadata, fn ->
+      result =
+        unwrap(
+          Req.post(base_url <> "/info",
+            json: body,
+            receive_timeout: @receive_timeout,
+            retry: :transient
+          )
+        )
+
+      {result, metadata}
+    end)
   end
 
   @impl true
