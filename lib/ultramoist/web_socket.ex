@@ -149,15 +149,26 @@ defmodule Ultramoist.WebSocket do
   end
 
   defp attempt_connect(state) do
-    case state.transport.open(state.url, self()) do
-      {:ok, conn} ->
-        %{state | conn: conn}
+    metadata = %{url: state.url}
 
-      {:error, _reason} ->
-        delay = state.backoff_delay.(state.reconnect_attempts)
-        Process.send_after(self(), :reconnect, delay)
-        %{state | status: :reconnecting, reconnect_attempts: state.reconnect_attempts + 1}
-    end
+    :telemetry.span([:ultramoist, :web_socket, :connect_attempt], metadata, fn ->
+      case state.transport.open(state.url, self()) do
+        {:ok, conn} ->
+          {%{state | conn: conn}, Map.put(metadata, :outcome, :ok)}
+
+        {:error, reason} ->
+          delay = state.backoff_delay.(state.reconnect_attempts)
+          Process.send_after(self(), :reconnect, delay)
+
+          new_state = %{
+            state
+            | status: :reconnecting,
+              reconnect_attempts: state.reconnect_attempts + 1
+          }
+
+          {new_state, Map.merge(metadata, %{outcome: :error, reason: reason})}
+      end
+    end)
   end
 
   defp has_subscription_content?(subscriptions, subscription) do

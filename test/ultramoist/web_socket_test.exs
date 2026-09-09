@@ -12,10 +12,60 @@ defmodule Ultramoist.WebSocketTest do
   # @spec WS-API-001
   test "reflects connected status once the transport reports connected" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, _conn, _url}
     assert Ultramoist.WebSocket.status(pid) == :connected
+  end
+
+  # @spec TELEM-API-006
+  test "emits telemetry for a successful connect attempt, naming the url" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [
+        [:ultramoist, :web_socket, :connect_attempt, :stop]
+      ])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    {:ok, _pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    assert_receive {[:ultramoist, :web_socket, :connect_attempt, :stop], ^ref, measurements,
+                    metadata}
+
+    assert metadata.url == "ws://fake"
+    assert metadata.outcome == :ok
+    assert is_integer(measurements.duration)
+  end
+
+  # @spec TELEM-API-007
+  test "emits telemetry for a failed connect attempt, naming the url and reason" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self(), fail_next_open: true)
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [
+        [:ultramoist, :web_socket, :connect_attempt, :stop]
+      ])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    {:ok, _pid} =
+      Ultramoist.WebSocket.start_link(
+        url: "ws://fake",
+        transport: Ultramoist.FakeTransport,
+        backoff_delay: fn _attempt -> 0 end
+      )
+
+    assert_receive {[:ultramoist, :web_socket, :connect_attempt, :stop], ^ref, _measurements,
+                    metadata}
+
+    assert metadata.url == "ws://fake"
+    assert metadata.outcome == :error
+    assert metadata.reason == :connection_refused
   end
 
   # @spec WS-API-007
@@ -49,7 +99,8 @@ defmodule Ultramoist.WebSocketTest do
   test "reports disconnected status before any connection is established" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self(), auto_connect: false)
 
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert Ultramoist.WebSocket.status(pid) == :disconnected
   end
@@ -101,7 +152,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec WS-API-009
   test "ignores a stale event from a superseded connection instead of crashing" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, _conn, _url}
     assert Ultramoist.WebSocket.status(pid) == :connected
@@ -115,7 +168,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec WS-API-004
   test "subscribing with an existing key is a no-op" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills"}
@@ -130,7 +185,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-004
   test "sends the subscribe envelope only once when a second key subscribes with identical content" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills", "user" => "0xabc"}
@@ -145,7 +202,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-005
   test "sends the unsubscribe envelope only after the last subscriber for that content unsubscribes" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     callback = fn _message -> :ok end
     subscription = %{"type" => "userFills", "user" => "0xabc"}
@@ -218,7 +277,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-006
   test "replays the last matching message to a subscriber who joins existing content" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, conn, _url}
 
@@ -249,7 +310,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-007
   test "does not replay stale data to a new subscriber after every previous subscriber for that content has left" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, conn, _url}
 
@@ -281,7 +344,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-001
   test "subscribe wraps the subscription in an envelope, sends it, and stores the callback" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, _conn, _url}
 
@@ -297,7 +362,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-002
   test "invokes the matching subscription's callback when a message arrives" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, conn, _url}
 
@@ -320,7 +387,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-005
   test "does not invoke a same-type subscription's callback when a message arrives for a different user" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, conn, _url}
 
@@ -352,7 +421,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-003
   test "unsubscribe removes the subscription and sends an unsubscribe envelope" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, _conn, _url}
 
@@ -371,7 +442,9 @@ defmodule Ultramoist.WebSocketTest do
   # @spec SUB-API-004
   test "does not invoke the callback for a subscription that has been unsubscribed" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
-    {:ok, pid} = Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
 
     assert_receive {:transport_opened, conn, _url}
 
