@@ -233,6 +233,36 @@ defmodule Ultramoist.WebSocketTest do
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
+  # @spec TELEM-API-011
+  test "emits telemetry naming the key, subscription, and outcome for a subscribe call" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills"}
+
+    assert_receive {:transport_opened, _conn, _url}
+    assert Ultramoist.WebSocket.status(pid) == :connected
+
+    ref = :telemetry_test.attach_event_handlers(self(), [[:ultramoist, :web_socket, :subscribe]])
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", subscription, callback)
+
+    assert_receive {[:ultramoist, :web_socket, :subscribe], ^ref, _measurements, metadata}
+    assert metadata.url == "ws://fake"
+    assert metadata.key == "user_fills"
+    assert metadata.subscription == subscription
+    assert metadata.outcome == :subscribed
+
+    assert :ok = Ultramoist.WebSocket.subscribe(pid, "user_fills", subscription, callback)
+
+    assert_receive {[:ultramoist, :web_socket, :subscribe], ^ref, _measurements, metadata2}
+    assert metadata2.outcome == :noop
+  end
+
   # @spec WS-API-004
   test "subscribing with an existing key is a no-op" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())

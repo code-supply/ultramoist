@@ -56,11 +56,12 @@ defmodule Ultramoist.WebSocket do
   # @spec WS-API-004
   @impl true
   def handle_call(
-        {:subscribe, key, _subscription, _callback},
+        {:subscribe, key, subscription, _callback},
         _from,
         %{subscriptions: subs} = state
       )
       when is_map_key(subs, key) do
+    notify_subscribe(state, key, subscription, :noop)
     {:reply, :ok, state}
   end
 
@@ -69,9 +70,10 @@ defmodule Ultramoist.WebSocket do
   # @spec SUB-API-006
   def handle_call({:subscribe, key, subscription, callback}, _from, state) do
     already_subscribed? = has_subscription_content?(state.subscriptions, subscription)
+    will_send? = state.status == :connected and not already_subscribed?
 
-    if state.status == :connected and not already_subscribed?,
-      do: send_envelope(state, "subscribe", subscription)
+    if will_send?, do: send_envelope(state, "subscribe", subscription)
+    notify_subscribe(state, key, subscription, if(will_send?, do: :subscribed, else: :noop))
 
     if cached = Map.get(state.last_messages, subscription), do: callback.(cached)
 
@@ -180,6 +182,15 @@ defmodule Ultramoist.WebSocket do
 
   defp has_subscription_content?(subscriptions, subscription) do
     Enum.any?(subscriptions, fn {_key, entry} -> entry.subscription == subscription end)
+  end
+
+  defp notify_subscribe(state, key, subscription, outcome) do
+    :telemetry.execute([:ultramoist, :web_socket, :subscribe], %{}, %{
+      url: state.url,
+      key: key,
+      subscription: subscription,
+      outcome: outcome
+    })
   end
 
   defp send_envelope(state, method, subscription) do
