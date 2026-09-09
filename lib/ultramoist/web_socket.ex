@@ -135,9 +135,9 @@ defmodule Ultramoist.WebSocket do
   # @spec WS-API-002
   @impl true
   def handle_info({:ws, conn, :disconnected}, %{conn: conn} = state) do
-    delay = state.backoff_delay.(state.reconnect_attempts)
-    Process.send_after(self(), :reconnect, delay)
-    {:noreply, %{state | status: :reconnecting, reconnect_attempts: state.reconnect_attempts + 1}}
+    :telemetry.execute([:ultramoist, :web_socket, :disconnected], %{}, %{url: state.url})
+
+    {:noreply, schedule_reconnect(state)}
   end
 
   def handle_info(:reconnect, state) do
@@ -159,18 +159,23 @@ defmodule Ultramoist.WebSocket do
           {%{state | conn: conn}, Map.put(metadata, :outcome, :ok)}
 
         {:error, reason} ->
-          delay = state.backoff_delay.(state.reconnect_attempts)
-          Process.send_after(self(), :reconnect, delay)
-
-          new_state = %{
-            state
-            | status: :reconnecting,
-              reconnect_attempts: state.reconnect_attempts + 1
-          }
-
-          {new_state, Map.merge(metadata, %{outcome: :error, reason: reason})}
+          {schedule_reconnect(state), Map.merge(metadata, %{outcome: :error, reason: reason})}
       end
     end)
+  end
+
+  defp schedule_reconnect(state) do
+    delay = state.backoff_delay.(state.reconnect_attempts)
+    attempt = state.reconnect_attempts + 1
+    Process.send_after(self(), :reconnect, delay)
+
+    :telemetry.execute([:ultramoist, :web_socket, :reconnect_scheduled], %{}, %{
+      url: state.url,
+      delay_ms: delay,
+      attempt: attempt
+    })
+
+    %{state | status: :reconnecting, reconnect_attempts: attempt}
   end
 
   defp has_subscription_content?(subscriptions, subscription) do

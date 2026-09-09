@@ -21,5 +21,7 @@ defmodule Ultramoist.TelemetryTest do
     assert [:ultramoist, :web_socket, :connect_attempt, :stop] in events
     assert [:ultramoist, :web_socket, :connect_attempt, :exception] in events
     assert [:ultramoist, :web_socket, :connected] in events
+    assert [:ultramoist, :web_socket, :disconnected] in events
+    assert [:ultramoist, :web_socket, :reconnect_scheduled] in events
   end
 end

@@ -119,6 +119,60 @@ defmodule Ultramoist.WebSocketTest do
     assert Ultramoist.WebSocket.status(pid) == :disconnected
   end
 
+  # @spec TELEM-API-009
+  test "emits telemetry when the transport reports a disconnect" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(
+        url: "ws://fake",
+        transport: Ultramoist.FakeTransport,
+        backoff_delay: fn _attempt -> 0 end
+      )
+
+    assert_receive {:transport_opened, conn, _url}
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [[:ultramoist, :web_socket, :disconnected]])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    send(pid, {:ws, conn, :disconnected})
+
+    assert_receive {[:ultramoist, :web_socket, :disconnected], ^ref, _measurements, metadata}
+    assert metadata.url == "ws://fake"
+  end
+
+  # @spec TELEM-API-010
+  test "emits telemetry naming the computed delay and attempt count when a reconnect is scheduled" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(
+        url: "ws://fake",
+        transport: Ultramoist.FakeTransport,
+        backoff_delay: fn _attempt -> 5_000 end
+      )
+
+    assert_receive {:transport_opened, conn, _url}
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [
+        [:ultramoist, :web_socket, :reconnect_scheduled]
+      ])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    send(pid, {:ws, conn, :disconnected})
+
+    assert_receive {[:ultramoist, :web_socket, :reconnect_scheduled], ^ref, _measurements,
+                    metadata}
+
+    assert metadata.url == "ws://fake"
+    assert metadata.delay_ms == 5_000
+    assert metadata.attempt == 1
+  end
+
   # @spec WS-API-002
   test "reconnects with a backoff delay after the transport reports a disconnect" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
