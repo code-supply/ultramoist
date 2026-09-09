@@ -88,14 +88,17 @@ defmodule Ultramoist.WebSocket do
   def handle_call({:unsubscribe, key}, _from, state) do
     {entry, subscriptions} = Map.pop(state.subscriptions, key)
     still_subscribed? = entry && has_subscription_content?(subscriptions, entry.subscription)
+    will_send? = entry && not still_subscribed?
 
     last_messages =
-      if entry && not still_subscribed? do
+      if will_send? do
         send_envelope(state, "unsubscribe", entry.subscription)
         Map.delete(state.last_messages, entry.subscription)
       else
         state.last_messages
       end
+
+    notify_unsubscribe(state, key, if(will_send?, do: :unsubscribed, else: :noop))
 
     {:reply, :ok, %{state | subscriptions: subscriptions, last_messages: last_messages}}
   end
@@ -189,6 +192,14 @@ defmodule Ultramoist.WebSocket do
       url: state.url,
       key: key,
       subscription: subscription,
+      outcome: outcome
+    })
+  end
+
+  defp notify_unsubscribe(state, key, outcome) do
+    :telemetry.execute([:ultramoist, :web_socket, :unsubscribe], %{}, %{
+      url: state.url,
+      key: key,
       outcome: outcome
     })
   end

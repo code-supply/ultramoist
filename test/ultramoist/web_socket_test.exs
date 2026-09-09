@@ -319,6 +319,41 @@ defmodule Ultramoist.WebSocketTest do
     assert JSON.decode!(frame) == %{"method" => "unsubscribe", "subscription" => subscription}
   end
 
+  # @spec TELEM-API-012
+  test "emits telemetry naming the key and outcome for an unsubscribe call" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    {:ok, pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    assert_receive {:transport_opened, _conn, _url}
+
+    callback = fn _message -> :ok end
+    subscription = %{"type" => "userFills", "user" => "0xabc"}
+
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 1}, subscription, callback)
+    assert_receive {:frame_sent, _subscribe_frame}
+    :ok = Ultramoist.WebSocket.subscribe(pid, {:tab, 2}, subscription, callback)
+
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [[:ultramoist, :web_socket, :unsubscribe]])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, {:tab, 1})
+
+    assert_receive {[:ultramoist, :web_socket, :unsubscribe], ^ref, _measurements, metadata}
+    assert metadata.url == "ws://fake"
+    assert metadata.key == {:tab, 1}
+    assert metadata.outcome == :noop
+
+    assert :ok = Ultramoist.WebSocket.unsubscribe(pid, {:tab, 2})
+
+    assert_receive {[:ultramoist, :web_socket, :unsubscribe], ^ref, _measurements, metadata2}
+    assert metadata2.key == {:tab, 2}
+    assert metadata2.outcome == :unsubscribed
+  end
+
   # @spec WS-API-003
   test "resubscribes to all active subscriptions after reconnecting" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())
