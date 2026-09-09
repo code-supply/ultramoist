@@ -20,6 +20,20 @@ defmodule Ultramoist.WebSocketTest do
     assert Ultramoist.WebSocket.status(pid) == :connected
   end
 
+  # @spec TELEM-API-008
+  test "emits telemetry once the transport reports connected" do
+    {:ok, _agent} = Ultramoist.FakeTransport.start(self())
+
+    ref = :telemetry_test.attach_event_handlers(self(), [[:ultramoist, :web_socket, :connected]])
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    {:ok, _pid} =
+      Ultramoist.WebSocket.start_link(url: "ws://fake", transport: Ultramoist.FakeTransport)
+
+    assert_receive {[:ultramoist, :web_socket, :connected], ^ref, _measurements, metadata}
+    assert metadata.url == "ws://fake"
+  end
+
   # @spec TELEM-API-006
   test "emits telemetry for a successful connect attempt, naming the url" do
     {:ok, _agent} = Ultramoist.FakeTransport.start(self())

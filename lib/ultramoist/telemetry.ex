@@ -19,7 +19,8 @@ defmodule Ultramoist.Telemetry do
     [:ultramoist, :http, :exchange_request, :exception],
     [:ultramoist, :web_socket, :connect_attempt, :start],
     [:ultramoist, :web_socket, :connect_attempt, :stop],
-    [:ultramoist, :web_socket, :connect_attempt, :exception]
+    [:ultramoist, :web_socket, :connect_attempt, :exception],
+    [:ultramoist, :web_socket, :connected]
   ]
 
   def events, do: @events

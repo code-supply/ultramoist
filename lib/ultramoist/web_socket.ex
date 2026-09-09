@@ -107,6 +107,8 @@ defmodule Ultramoist.WebSocket do
     |> Enum.uniq()
     |> Enum.each(fn subscription -> send_envelope(state, "subscribe", subscription) end)
 
+    :telemetry.execute([:ultramoist, :web_socket, :connected], %{}, %{url: state.url})
+
     {:noreply, %{state | status: :connected, reconnect_attempts: 0}}
   end
 
