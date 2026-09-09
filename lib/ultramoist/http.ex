@@ -29,7 +29,11 @@ defmodule Ultramoist.Http do
   @impl true
   def stats_request(type, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
-    unwrap(Req.get(base_url <> "/" <> type, receive_timeout: @receive_timeout))
+    metadata = %{base_url: base_url, type: type}
+
+    :telemetry.span([:ultramoist, :http, :stats_request], metadata, fn ->
+      {unwrap(Req.get(base_url <> "/" <> type, receive_timeout: @receive_timeout)), metadata}
+    end)
   end
 
   @impl true

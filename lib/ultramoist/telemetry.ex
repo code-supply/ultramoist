@@ -10,7 +10,10 @@ defmodule Ultramoist.Telemetry do
   @events [
     [:ultramoist, :http, :info_request, :start],
     [:ultramoist, :http, :info_request, :stop],
-    [:ultramoist, :http, :info_request, :exception]
+    [:ultramoist, :http, :info_request, :exception],
+    [:ultramoist, :http, :stats_request, :start],
+    [:ultramoist, :http, :stats_request, :stop],
+    [:ultramoist, :http, :stats_request, :exception]
   ]
 
   def events, do: @events

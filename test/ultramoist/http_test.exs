@@ -34,6 +34,23 @@ defmodule Ultramoist.HttpTest do
              )
   end
 
+  # @spec TELEM-API-003
+  test "emits telemetry for a stats request, naming its type and base url" do
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [[:ultramoist, :http, :stats_request, :stop]])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    base_url = Ultramoist.Config.stats_url(:testnet)
+
+    assert {:ok, _body} = Ultramoist.Http.stats_request("vaults", base_url: base_url)
+
+    assert_receive {[:ultramoist, :http, :stats_request, :stop], ^ref, measurements, metadata}
+    assert metadata.base_url == base_url
+    assert metadata.type == "vaults"
+    assert is_integer(measurements.duration)
+  end
+
   # @spec HTTP-API-002
   test "makes a signed exchange-action request against the real testnet host" do
     action = %{"type" => "cancel", "cancels" => []}
