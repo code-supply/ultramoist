@@ -51,6 +51,39 @@ defmodule Ultramoist.HttpTest do
     assert is_integer(measurements.duration)
   end
 
+  # @spec TELEM-API-005
+  test "emits telemetry for an exchange request, naming its action type and base url" do
+    ref =
+      :telemetry_test.attach_event_handlers(self(), [
+        [:ultramoist, :http, :exchange_request, :stop]
+      ])
+
+    on_exit(fn -> :telemetry.detach(ref) end)
+
+    action = %{"type" => "cancel", "cancels" => []}
+
+    signature = %{
+      "r" => "0x" <> String.duplicate("1", 64),
+      "s" => "0x" <> String.duplicate("2", 64),
+      "v" => 27
+    }
+
+    base_url = Ultramoist.Config.info_url(:testnet)
+
+    assert {:ok, _body} =
+             Ultramoist.Http.exchange_request(action,
+               signature: signature,
+               nonce: 1,
+               vault_address: nil,
+               base_url: base_url
+             )
+
+    assert_receive {[:ultramoist, :http, :exchange_request, :stop], ^ref, measurements, metadata}
+    assert metadata.base_url == base_url
+    assert metadata.type == "cancel"
+    assert is_integer(measurements.duration)
+  end
+
   # @spec HTTP-API-002
   test "makes a signed exchange-action request against the real testnet host" do
     action = %{"type" => "cancel", "cancels" => []}

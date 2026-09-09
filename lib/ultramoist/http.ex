@@ -42,15 +42,23 @@ defmodule Ultramoist.Http do
     signature = Keyword.fetch!(opts, :signature)
     nonce = Keyword.fetch!(opts, :nonce)
     vault_address = Keyword.fetch!(opts, :vault_address)
+    json_action = to_json(action)
 
     body = %{
-      "action" => to_json(action),
+      "action" => json_action,
       "signature" => signature,
       "nonce" => nonce,
       "vaultAddress" => vault_address
     }
 
-    unwrap(Req.post(base_url <> "/exchange", json: body, receive_timeout: @receive_timeout))
+    metadata = %{base_url: base_url, type: json_action["type"]}
+
+    :telemetry.span([:ultramoist, :http, :exchange_request], metadata, fn ->
+      result =
+        unwrap(Req.post(base_url <> "/exchange", json: body, receive_timeout: @receive_timeout))
+
+      {result, metadata}
+    end)
   end
 
   defp to_json(keyword_list) when is_list(keyword_list) do

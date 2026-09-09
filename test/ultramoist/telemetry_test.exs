@@ -14,5 +14,8 @@ defmodule Ultramoist.TelemetryTest do
     assert [:ultramoist, :http, :stats_request, :start] in events
     assert [:ultramoist, :http, :stats_request, :stop] in events
     assert [:ultramoist, :http, :stats_request, :exception] in events
+    assert [:ultramoist, :http, :exchange_request, :start] in events
+    assert [:ultramoist, :http, :exchange_request, :stop] in events
+    assert [:ultramoist, :http, :exchange_request, :exception] in events
   end
 end
