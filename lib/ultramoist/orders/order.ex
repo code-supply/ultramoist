@@ -10,37 +10,51 @@ defmodule Ultramoist.Orders.Order do
 
     [
       type: "order",
-      orders: [
-        [a: asset_index, b: is_buy, p: limit_px, s: sz, r: reduce_only, t: [limit: [tif: "Gtc"]]]
-      ],
+      orders: [order_spec(asset_index, is_buy, limit_px, sz, reduce_only)],
       grouping: "na"
     ]
   end
 
+  # @spec ORD-DATA-010
+  def build_batch_place_action(orders) do
+    [
+      type: "order",
+      orders:
+        Enum.map(orders, fn {asset_index, is_buy, limit_px, sz} ->
+          order_spec(asset_index, is_buy, limit_px, sz, false)
+        end),
+      grouping: "na"
+    ]
+  end
+
+  defp order_spec(asset_index, is_buy, limit_px, sz, reduce_only) do
+    [a: asset_index, b: is_buy, p: limit_px, s: sz, r: reduce_only, t: [limit: [tif: "Gtc"]]]
+  end
+
   # @spec ORD-DATA-002
-  def parse_place_response(%{
-        "response" => %{"data" => %{"statuses" => [%{"resting" => %{"oid" => order_id}}]}}
-      }) do
-    {:ok, order_id}
-  end
-
-  def parse_place_response(%{
-        "response" => %{"data" => %{"statuses" => [%{"error" => reason}]}}
-      }) do
-    {:error, reason}
-  end
-
   # @spec ORD-DATA-006
-  def parse_place_response(%{
-        "response" => %{"data" => %{"statuses" => [%{"filled" => %{"oid" => order_id}}]}}
-      }) do
-    {:ok, order_id}
+  def parse_place_response(%{"response" => %{"data" => %{"statuses" => [status]}}}) do
+    parse_status(status)
   end
 
   # @spec ORD-DATA-009
   def parse_place_response(%{"status" => "err", "response" => reason}) do
     {:error, reason}
   end
+
+  # @spec ORD-DATA-011
+  def parse_batch_place_response(%{"response" => %{"data" => %{"statuses" => statuses}}}) do
+    Enum.map(statuses, &parse_status/1)
+  end
+
+  # @spec ORD-DATA-012
+  def parse_batch_place_response(%{"status" => "err", "response" => reason}) do
+    {:error, reason}
+  end
+
+  defp parse_status(%{"resting" => %{"oid" => order_id}}), do: {:ok, order_id}
+  defp parse_status(%{"filled" => %{"oid" => order_id}}), do: {:ok, order_id}
+  defp parse_status(%{"error" => reason}), do: {:error, reason}
 
   # @spec LEV-DATA-001
   def build_update_leverage_action(opts) do
@@ -94,6 +108,40 @@ defmodule Ultramoist.Orders.Order do
       with {:ok, response} <- sign_and_submit(action, opts) do
         parse_place_response(response)
       end
+    end
+  end
+
+  # @spec ORD-API-005
+  def place_limit_batch(cache_pid, orders, opts) do
+    with {:ok, built_orders} <- resolve_batch_orders(cache_pid, orders) do
+      action = build_batch_place_action(built_orders)
+
+      with {:ok, response} <- sign_and_submit(action, opts) do
+        parse_batch_place_response(response)
+      end
+    end
+  end
+
+  defp resolve_batch_orders(cache_pid, orders) do
+    Enum.reduce_while(orders, {:ok, []}, fn {coin, is_buy, limit_px, sz}, {:ok, acc} ->
+      case Ultramoist.AssetCache.lookup(cache_pid, coin) do
+        {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} ->
+          built = {
+            asset_index,
+            is_buy,
+            format_price(limit_px, size_decimals),
+            format_size(sz, size_decimals)
+          }
+
+          {:cont, {:ok, [built | acc]}}
+
+        {:error, _reason} = error ->
+          {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, built_orders} -> {:ok, Enum.reverse(built_orders)}
+      error -> error
     end
   end
 

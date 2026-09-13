@@ -24,6 +24,57 @@ defmodule Ultramoist.Orders.OrderTest do
              ]
   end
 
+  # @spec ORD-DATA-010
+  test "builds a GTC batch order action from multiple order specs" do
+    orders = [
+      {0, true, "100.5", "0.1"},
+      {0, false, "101.5", "0.2"}
+    ]
+
+    assert Ultramoist.Orders.Order.build_batch_place_action(orders) == [
+             type: "order",
+             orders: [
+               [a: 0, b: true, p: "100.5", s: "0.1", r: false, t: [limit: [tif: "Gtc"]]],
+               [a: 0, b: false, p: "101.5", s: "0.2", r: false, t: [limit: [tif: "Gtc"]]]
+             ],
+             grouping: "na"
+           ]
+  end
+
+  # @spec ORD-DATA-011
+  test "parses a batch order-placement response into a list of per-order results" do
+    response = %{
+      "status" => "ok",
+      "response" => %{
+        "type" => "order",
+        "data" => %{
+          "statuses" => [
+            %{"resting" => %{"oid" => 111}},
+            %{"error" => "Price must be divisible by tick size."},
+            %{"filled" => %{"totalSz" => "0.1", "avgPx" => "100.5", "oid" => 222}}
+          ]
+        }
+      }
+    }
+
+    assert Ultramoist.Orders.Order.parse_batch_place_response(response) == [
+             {:ok, 111},
+             {:error, "Price must be divisible by tick size."},
+             {:ok, 222}
+           ]
+  end
+
+  # @spec ORD-DATA-012
+  test "parses a batch request rejected before it reached order processing into a single overall error" do
+    response = %{
+      "status" => "err",
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+    }
+
+    assert Ultramoist.Orders.Order.parse_batch_place_response(response) ==
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+  end
+
   # @spec ORD-DATA-002
   test "parses a successful order-placement response into the resulting order id" do
     response = %{
@@ -194,6 +245,48 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 99}
+  end
+
+  # @spec ORD-API-005
+  test "places a batch of limit orders in one request: resolves each asset index, signs once, submits once, returns per-order results" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{
+             "statuses" => [
+               %{"resting" => %{"oid" => 99}},
+               %{"error" => "Price must be divisible by tick size."}
+             ]
+           }
+         }
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    orders = [
+      {"BTC", true, "1.0", "0.001"},
+      {"BTC", false, "1.1", "0.002"}
+    ]
+
+    assert Ultramoist.Orders.Order.place_limit_batch(cache_pid, orders,
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == [{:ok, 99}, {:error, "Price must be divisible by tick size."}]
   end
 
   # @spec ORD-API-004
