@@ -168,6 +168,16 @@ defmodule Ultramoist.Orders.OrderTest do
            ]
   end
 
+  # @spec ORD-DATA-013
+  test "builds a batch cancel action from multiple asset index and order id pairs" do
+    cancels = [{0, 12345}, {1, 67890}]
+
+    assert Ultramoist.Orders.Order.build_batch_cancel_action(cancels) == [
+             type: "cancel",
+             cancels: [[a: 0, o: 12345], [a: 1, o: 67890]]
+           ]
+  end
+
   # @spec ORD-DATA-005
   test "parses a successful cancel response into confirmation" do
     response = %{
@@ -194,6 +204,27 @@ defmodule Ultramoist.Orders.OrderTest do
 
     assert Ultramoist.Orders.Order.parse_cancel_response(response) ==
              {:error, "Order was never placed, already canceled, or filled. asset=230"}
+  end
+
+  # @spec ORD-DATA-014
+  test "parses a batch cancel response into a list of per-cancel results" do
+    response = %{
+      "status" => "ok",
+      "response" => %{
+        "type" => "cancel",
+        "data" => %{
+          "statuses" => [
+            "success",
+            %{"error" => "Order was never placed, already canceled, or filled. asset=230"}
+          ]
+        }
+      }
+    }
+
+    assert Ultramoist.Orders.Order.parse_batch_cancel_response(response) == [
+             :ok,
+             {:error, "Order was never placed, already canceled, or filled. asset=230"}
+           ]
   end
 
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
@@ -459,5 +490,25 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == :ok
+  end
+
+  # @spec ORD-API-006
+  test "cancels a batch of orders in one request: signs once, submits once, returns per-cancel results" do
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success", "success"]}}
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.cancel_batch(
+             [{0, 99}, {0, 100}],
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == [:ok, :ok]
   end
 end

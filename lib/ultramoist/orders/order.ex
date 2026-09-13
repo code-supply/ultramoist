@@ -80,6 +80,14 @@ defmodule Ultramoist.Orders.Order do
     [type: "cancel", cancels: [[a: asset_index, o: order_id]]]
   end
 
+  # @spec ORD-DATA-013
+  def build_batch_cancel_action(cancels) do
+    [
+      type: "cancel",
+      cancels: Enum.map(cancels, fn {asset_index, order_id} -> [a: asset_index, o: order_id] end)
+    ]
+  end
+
   # @spec ORD-DATA-005
   def parse_cancel_response(%{"response" => %{"data" => %{"statuses" => ["success"]}}}) do
     :ok
@@ -91,6 +99,14 @@ defmodule Ultramoist.Orders.Order do
       }) do
     {:error, reason}
   end
+
+  # @spec ORD-DATA-014
+  def parse_batch_cancel_response(%{"response" => %{"data" => %{"statuses" => statuses}}}) do
+    Enum.map(statuses, &parse_cancel_status/1)
+  end
+
+  defp parse_cancel_status("success"), do: :ok
+  defp parse_cancel_status(%{"error" => reason}), do: {:error, reason}
 
   # @spec ORD-API-001
   # @spec ORD-API-004
@@ -213,6 +229,15 @@ defmodule Ultramoist.Orders.Order do
 
     with {:ok, response} <- sign_and_submit(action, http_opts) do
       parse_cancel_response(response)
+    end
+  end
+
+  # @spec ORD-API-006
+  def cancel_batch(cancels, opts) do
+    action = build_batch_cancel_action(cancels)
+
+    with {:ok, response} <- sign_and_submit(action, opts) do
+      parse_batch_cancel_response(response)
     end
   end
 
