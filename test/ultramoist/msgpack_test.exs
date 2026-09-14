@@ -59,4 +59,29 @@ defmodule Ultramoist.MsgpackTest do
     assert Ultramoist.Msgpack.encode(a: [b: "x"]) ==
              <<0x81, 0xA1, "a", 0x81, 0xA1, "b", 0xA1, "x">>
   end
+
+  # @spec MPK-DATA-009
+  test "encodes a 16-element array using the array16 format, not fixarray" do
+    list = Enum.to_list(1..16)
+
+    expected =
+      <<0xDC, 0, 16>> <> (list |> Enum.map(&Ultramoist.Msgpack.encode/1) |> Enum.join())
+
+    assert Ultramoist.Msgpack.encode(list) == expected
+  end
+
+  # @spec MPK-DATA-010
+  test "encodes a 16-entry keyword list as a map using the map16 format, not fixmap" do
+    kw = for i <- 1..16, into: [], do: {String.to_atom("k#{i}"), i}
+
+    expected =
+      <<0xDE, 0, 16>> <>
+        (kw
+         |> Enum.map(fn {k, v} ->
+           Ultramoist.Msgpack.encode(to_string(k)) <> Ultramoist.Msgpack.encode(v)
+         end)
+         |> Enum.join())
+
+    assert Ultramoist.Msgpack.encode(kw) == expected
+  end
 end
