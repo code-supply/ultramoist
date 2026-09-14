@@ -39,6 +39,48 @@ defmodule Ultramoist.RealNetworkVerificationTest do
              )
   end
 
+  # @spec RNV-API-003
+  test "places and cancels a batch of real limit orders on Hyperliquid testnet" do
+    priv_key =
+      "ULTRAMOIST_TESTNET_PRIV_KEY"
+      |> System.fetch_env!()
+      |> String.trim_leading("0x")
+      |> Base.decode16!(case: :mixed)
+
+    base_url = Ultramoist.Config.info_url(:testnet)
+
+    {:ok, mids} = Ultramoist.Http.info_request(%{"type" => "allMids"}, base_url: base_url)
+    {btc_mid, _} = Float.parse(mids["BTC"])
+    limit_price_1 = (btc_mid * 0.5) |> trunc() |> to_string()
+    limit_price_1 = limit_price_1 <> ".00"
+    limit_price_2 = (btc_mid * 0.4) |> trunc() |> to_string()
+    limit_price_2 = limit_price_2 <> ".000"
+
+    {:ok, cache_pid} = Ultramoist.AssetCache.start_link(base_url: base_url)
+
+    orders = [
+      {"BTC", true, limit_price_1, "0.0010"},
+      {"BTC", true, limit_price_2, "0.001000"}
+    ]
+
+    assert [{:ok, order_id_1}, {:ok, order_id_2}] =
+             Ultramoist.Orders.Order.place_limit_batch(cache_pid, orders,
+               priv_key: priv_key,
+               source: Ultramoist.Signer.testnet_source(),
+               base_url: base_url
+             )
+
+    {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
+
+    assert [:ok, :ok] =
+             Ultramoist.Orders.Order.cancel_batch(
+               [{asset_index, order_id_1}, {asset_index, order_id_2}],
+               priv_key: priv_key,
+               source: Ultramoist.Signer.testnet_source(),
+               base_url: base_url
+             )
+  end
+
   # A known-active Hyperliquid Vault (HLP Strategy A) that reliably has
   # position changes to report - used only to confirm the real API's
   # clearinghouseState message still matches the shape consumers parse.
