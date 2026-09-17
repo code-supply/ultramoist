@@ -1,7 +1,7 @@
 defmodule Ultramoist.Positions.PositionTest do
   use ExUnit.Case, async: true
 
-  test "parses a position entry from clearinghouseState into coin, signed size, entry price, unrealized PnL, margin used, and leverage" do
+  test "parses a position entry from clearinghouseState into coin, signed size, entry price, unrealized PnL, margin used, leverage, and margin mode" do
     raw = %{
       "position" => %{
         "coin" => "LDO",
@@ -20,7 +20,8 @@ defmodule Ultramoist.Positions.PositionTest do
              entry_price: Decimal.new("0.29601"),
              unrealized_pnl: Decimal.new("-4.9225"),
              margin_used: Decimal.new("192.5065"),
-             leverage: 10
+             leverage: 10,
+             margin_mode: :cross
            }
   end
 end

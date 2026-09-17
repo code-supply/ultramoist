@@ -51,7 +51,8 @@ defmodule Ultramoist.PositionsTest do
                  entry_price: Decimal.new("0.29601"),
                  unrealized_pnl: Decimal.new("1.1525"),
                  margin_used: Decimal.new("241.5"),
-                 leverage: 20
+                 leverage: 20,
+                 margin_mode: :cross
                }
              ],
              account_value: "1234.56",
