@@ -16,7 +16,8 @@ defmodule Ultramoist.Fill do
     :fee,
     :fee_token,
     :trade_id,
-    :twap_id
+    :twap_id,
+    :liquidation
   ]
 
   def parse(fill) do
@@ -35,7 +36,8 @@ defmodule Ultramoist.Fill do
       fee: Decimal.new(fill["fee"]),
       fee_token: fill["feeToken"],
       trade_id: fill["tid"],
-      twap_id: fill["twapId"]
+      twap_id: fill["twapId"],
+      liquidation: Ultramoist.FillLiquidation.parse(fill["liquidation"])
     }
   end
 end
