@@ -10,7 +10,7 @@ defmodule Ultramoist.Orders do
     request_opts = Keyword.merge(http_opts, base_url: base_url)
 
     with {:ok, orders} <-
-           http.info_request(%{"type" => "openOrders", "user" => user}, request_opts) do
+           http.info_request(%{"type" => "frontendOpenOrders", "user" => user}, request_opts) do
       {:ok, Enum.map(orders || [], &Ultramoist.Orders.OpenOrder.parse/1)}
     end
   end

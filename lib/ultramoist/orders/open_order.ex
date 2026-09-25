@@ -1,7 +1,16 @@
 defmodule Ultramoist.Orders.OpenOrder do
   @moduledoc false
 
-  defstruct [:coin, :side, :limit_price, :size, :order_id, :timestamp, :original_size]
+  defstruct [
+    :coin,
+    :side,
+    :limit_price,
+    :size,
+    :order_id,
+    :reduce_only,
+    :timestamp,
+    :original_size
+  ]
 
   def parse(order) do
     %__MODULE__{
@@ -10,6 +19,7 @@ defmodule Ultramoist.Orders.OpenOrder do
       limit_price: Decimal.new(order["limitPx"]),
       size: Decimal.new(order["sz"]),
       order_id: order["oid"],
+      reduce_only: order["reduceOnly"],
       timestamp: Ultramoist.Timestamp.parse(order["timestamp"]),
       original_size: Decimal.new(order["origSz"])
     }

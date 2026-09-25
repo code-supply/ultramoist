@@ -9,7 +9,8 @@ defmodule Ultramoist.Orders.OpenOrderTest do
       "sz" => "100",
       "oid" => 12345,
       "timestamp" => 1_700_000_000_000,
-      "origSz" => "250"
+      "origSz" => "250",
+      "reduceOnly" => false
     }
 
     assert Ultramoist.Orders.OpenOrder.parse(raw) == %Ultramoist.Orders.OpenOrder{
@@ -19,7 +20,8 @@ defmodule Ultramoist.Orders.OpenOrderTest do
              size: Decimal.new("100"),
              order_id: 12345,
              timestamp: ~N[2023-11-14 22:13:20.000],
-             original_size: Decimal.new("250")
+             original_size: Decimal.new("250"),
+             reduce_only: false
            }
   end
 end

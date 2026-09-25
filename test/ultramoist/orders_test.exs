@@ -13,7 +13,7 @@ defmodule Ultramoist.OrdersTest do
       "origSz" => "250"
     }
 
-    stub = fn %{"type" => "openOrders", "user" => "0xabc"}, _opts -> {:ok, [raw]} end
+    stub = fn %{"type" => "frontendOpenOrders", "user" => "0xabc"}, _opts -> {:ok, [raw]} end
 
     assert Ultramoist.Orders.fetch_open("0xabc",
              base_url: "unused",
@@ -23,7 +23,7 @@ defmodule Ultramoist.OrdersTest do
 
   # @spec ORDS-API-002
   test "treats a nil response as no open orders, rather than crashing" do
-    stub = fn %{"type" => "openOrders", "user" => "0xabc"}, _opts -> {:ok, nil} end
+    stub = fn %{"type" => "frontendOpenOrders", "user" => "0xabc"}, _opts -> {:ok, nil} end
 
     assert Ultramoist.Orders.fetch_open("0xabc",
              base_url: "unused",
