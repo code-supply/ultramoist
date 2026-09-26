@@ -47,4 +47,41 @@ defmodule Ultramoist.AssetCacheTest do
 
     assert {:ok, %{asset_index: 0, size_decimals: 5}} = Ultramoist.AssetCache.lookup(pid, "BTC")
   end
+
+  test "builds an index for a builder-deployed dex, offsetting asset ids per its perp_dex_index" do
+    universe = [
+      %{"name" => "xyz:GOLD", "szDecimals" => 2},
+      %{"name" => "xyz:SILVER", "szDecimals" => 3}
+    ]
+
+    assert Ultramoist.AssetCache.build_index(universe, 1) == %{
+             "xyz:GOLD" => %{asset_index: 110_000, size_decimals: 2},
+             "xyz:SILVER" => %{asset_index: 110_001, size_decimals: 3}
+           }
+  end
+
+  test "populates its index from both the native dex and a configured builder-deployed dex" do
+    stub = fn
+      %{"type" => "perpDexs"}, _opts ->
+        {:ok, [nil, %{"name" => "xyz"}]}
+
+      %{"type" => "meta", "dex" => "xyz"}, _opts ->
+        {:ok, %{"universe" => [%{"name" => "xyz:GOLD", "szDecimals" => 2}]}}
+
+      %{"type" => "meta"}, _opts ->
+        {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        dexs: [nil, "xyz"],
+        http: {Ultramoist.FakeHttp, stub: stub}
+      )
+
+    assert {:ok, %{asset_index: 0, size_decimals: 5}} = Ultramoist.AssetCache.lookup(pid, "BTC")
+
+    assert {:ok, %{asset_index: 110_000, size_decimals: 2}} =
+             Ultramoist.AssetCache.lookup(pid, "xyz:GOLD")
+  end
 end

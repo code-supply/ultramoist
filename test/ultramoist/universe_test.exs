@@ -34,4 +34,29 @@ defmodule Ultramoist.UniverseTest do
                 }
               ]}
   end
+
+  test "fetches a builder-deployed dex's universe, requesting that dex and tagging assets with it" do
+    universe_meta = [%{"name" => "xyz:GOLD", "szDecimals" => 2}]
+    contexts = [%{"dayNtlVlm" => "500000", "markPx" => "4000"}]
+
+    stub = fn %{"type" => "metaAndAssetCtxs", "dex" => "xyz"}, _opts ->
+      {:ok, [%{"universe" => universe_meta}, contexts]}
+    end
+
+    assert Ultramoist.Universe.fetch(
+             base_url: "unused",
+             dex: "xyz",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) ==
+             {:ok,
+              [
+                %Ultramoist.Universe.Asset{
+                  name: "xyz:GOLD",
+                  dex: "xyz",
+                  is_delisted: false,
+                  day_volume: Decimal.new("500000"),
+                  mark_price: Decimal.new("4000")
+                }
+              ]}
+  end
 end

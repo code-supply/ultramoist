@@ -115,4 +115,18 @@ defmodule Ultramoist.RealNetworkVerificationTest do
                      }},
                     20_000
   end
+
+  test "resolves a real HIP-3 builder-deployed asset (xyz:GOLD) alongside the native universe" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(base_url: base_url, dexs: [nil, "xyz"])
+
+    assert {:ok, %{asset_index: asset_index, size_decimals: _}} =
+             Ultramoist.AssetCache.lookup(cache_pid, "xyz:GOLD")
+
+    assert asset_index >= 100_000
+
+    assert {:ok, %{asset_index: 0}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
+  end
 end
