@@ -24,6 +24,19 @@ defmodule Ultramoist.Orders.OrderTest do
              ]
   end
 
+  # @spec ORD-DATA-015
+  test "builds a post-only order action that the exchange rejects rather than lets cross" do
+    assert Ultramoist.Orders.Order.build_place_action(0, true, "100.5", "0.1",
+             time_in_force: :post_only
+           ) == [
+             type: "order",
+             orders: [
+               [a: 0, b: true, p: "100.5", s: "0.1", r: false, t: [limit: [tif: "Alo"]]]
+             ],
+             grouping: "na"
+           ]
+  end
+
   # @spec ORD-DATA-010
   test "builds a GTC batch order action from multiple order specs" do
     orders = [
@@ -360,6 +373,49 @@ defmodule Ultramoist.Orders.OrderTest do
 
     assert action[:orders] == [
              [a: 0, b: true, p: "1", s: "0.001", r: true, t: [limit: [tif: "Gtc"]]]
+           ]
+  end
+
+  # @spec ORD-API-007
+  test "places a post-only limit order when time_in_force: :post_only is given" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    test_pid = self()
+
+    exchange_stub = fn action, _opts ->
+      send(test_pid, {:action, action})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{"statuses" => [%{"resting" => %{"oid" => 99}}]}
+         }
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.place_limit(cache_pid, "BTC", true, "1.0", "0.001",
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub},
+             time_in_force: :post_only
+           ) == {:ok, 99}
+
+    assert_received {:action, action}
+
+    assert action[:orders] == [
+             [a: 0, b: true, p: "1", s: "0.001", r: false, t: [limit: [tif: "Alo"]]]
            ]
   end
 

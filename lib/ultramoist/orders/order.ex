@@ -5,12 +5,14 @@ defmodule Ultramoist.Orders.Order do
 
   # @spec ORD-DATA-001
   # @spec ORD-DATA-008
+  # @spec ORD-DATA-015
   def build_place_action(asset_index, is_buy, limit_px, sz, opts \\ []) do
     reduce_only = Keyword.get(opts, :reduce_only, false)
+    time_in_force = Keyword.get(opts, :time_in_force)
 
     [
       type: "order",
-      orders: [order_spec(asset_index, is_buy, limit_px, sz, reduce_only)],
+      orders: [order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force)],
       grouping: "na"
     ]
   end
@@ -21,15 +23,25 @@ defmodule Ultramoist.Orders.Order do
       type: "order",
       orders:
         Enum.map(orders, fn {asset_index, is_buy, limit_px, sz} ->
-          order_spec(asset_index, is_buy, limit_px, sz, false)
+          order_spec(asset_index, is_buy, limit_px, sz, false, nil)
         end),
       grouping: "na"
     ]
   end
 
-  defp order_spec(asset_index, is_buy, limit_px, sz, reduce_only) do
-    [a: asset_index, b: is_buy, p: limit_px, s: sz, r: reduce_only, t: [limit: [tif: "Gtc"]]]
+  defp order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force) do
+    [
+      a: asset_index,
+      b: is_buy,
+      p: limit_px,
+      s: sz,
+      r: reduce_only,
+      t: [limit: [tif: tif(time_in_force)]]
+    ]
   end
+
+  defp tif(:post_only), do: "Alo"
+  defp tif(nil), do: "Gtc"
 
   # @spec ORD-DATA-002
   # @spec ORD-DATA-006
@@ -110,6 +122,7 @@ defmodule Ultramoist.Orders.Order do
 
   # @spec ORD-API-001
   # @spec ORD-API-004
+  # @spec ORD-API-007
   def place_limit(cache_pid, coin, is_buy, limit_px, sz, opts) do
     with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
            Ultramoist.AssetCache.lookup(cache_pid, coin) do
@@ -118,7 +131,8 @@ defmodule Ultramoist.Orders.Order do
 
       action =
         build_place_action(asset_index, is_buy, formatted_price, formatted_size,
-          reduce_only: Keyword.get(opts, :reduce_only, false)
+          reduce_only: Keyword.get(opts, :reduce_only, false),
+          time_in_force: Keyword.get(opts, :time_in_force)
         )
 
       with {:ok, response} <- sign_and_submit(action, opts) do
