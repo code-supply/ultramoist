@@ -21,6 +21,28 @@ defmodule Ultramoist.OrdersTest do
            ) == {:ok, [Ultramoist.Orders.OpenOrder.parse(raw)]}
   end
 
+  test "fetches a builder-deployed dex's open orders by passing its dex parameter" do
+    raw = %{
+      "coin" => "xyz:SILVER",
+      "side" => "B",
+      "limitPx" => "42.0",
+      "sz" => "10",
+      "oid" => 54321,
+      "timestamp" => 1_700_000_000_000,
+      "origSz" => "20"
+    }
+
+    stub = fn %{"type" => "frontendOpenOrders", "user" => "0xabc", "dex" => "xyz"}, _opts ->
+      {:ok, [raw]}
+    end
+
+    assert Ultramoist.Orders.fetch_open("0xabc",
+             base_url: "unused",
+             dex: "xyz",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) == {:ok, [Ultramoist.Orders.OpenOrder.parse(raw)]}
+  end
+
   # @spec ORDS-API-002
   test "treats a nil response as no open orders, rather than crashing" do
     stub = fn %{"type" => "frontendOpenOrders", "user" => "0xabc"}, _opts -> {:ok, nil} end

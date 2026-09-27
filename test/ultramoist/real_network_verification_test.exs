@@ -148,4 +148,16 @@ defmodule Ultramoist.RealNetworkVerificationTest do
 
     assert is_list(positions)
   end
+
+  test "fetches a real wallet's HIP-3 dex-scoped open orders without erroring" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, orders} =
+             Ultramoist.Orders.fetch_open("0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F",
+               base_url: base_url,
+               dex: "xyz"
+             )
+
+    assert is_list(orders)
+  end
 end
