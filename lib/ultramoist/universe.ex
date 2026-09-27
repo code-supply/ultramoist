@@ -8,8 +8,9 @@ defmodule Ultramoist.Universe do
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
     request_opts = Keyword.merge(http_opts, base_url: base_url)
 
-    with {:ok, [%{"universe" => universe}, contexts]} <-
-           http.info_request(request_body(dex), request_opts) do
+    body = Ultramoist.Dex.merge_dex(%{"type" => "metaAndAssetCtxs"}, dex)
+
+    with {:ok, [%{"universe" => universe}, contexts]} <- http.info_request(body, request_opts) do
       assets =
         universe
         |> Enum.zip(contexts)
@@ -18,7 +19,4 @@ defmodule Ultramoist.Universe do
       {:ok, assets}
     end
   end
-
-  defp request_body(nil), do: %{"type" => "metaAndAssetCtxs"}
-  defp request_body(dex), do: %{"type" => "metaAndAssetCtxs", "dex" => dex}
 end

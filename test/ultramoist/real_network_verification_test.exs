@@ -129,4 +129,23 @@ defmodule Ultramoist.RealNetworkVerificationTest do
 
     assert {:ok, %{asset_index: 0}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
   end
+
+  test "fetches a real HIP-3 builder-deployed asset's mid price by passing its dex" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, price} = Ultramoist.Mids.fetch("xyz:GOLD", base_url: base_url, dex: "xyz")
+    assert Decimal.gt?(price, 0)
+  end
+
+  test "fetches a real wallet's HIP-3 dex-scoped positions without erroring" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, positions} =
+             Ultramoist.Positions.fetch("0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F",
+               base_url: base_url,
+               dex: "xyz"
+             )
+
+    assert is_list(positions)
+  end
 end

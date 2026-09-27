@@ -24,6 +24,30 @@ defmodule Ultramoist.PositionsTest do
            ) == {:ok, [Ultramoist.Positions.Position.parse(raw)]}
   end
 
+  test "fetches a builder-deployed dex's positions by passing its dex parameter" do
+    raw = %{
+      "position" => %{
+        "coin" => "xyz:GOLD",
+        "szi" => "1.5",
+        "entryPx" => "4200.0",
+        "unrealizedPnl" => "12.5",
+        "marginUsed" => "630.0",
+        "leverage" => %{"type" => "cross", "value" => 5}
+      },
+      "type" => "oneWay"
+    }
+
+    stub = fn %{"type" => "clearinghouseState", "user" => "0xabc", "dex" => "xyz"}, _opts ->
+      {:ok, %{"assetPositions" => [raw]}}
+    end
+
+    assert Ultramoist.Positions.fetch("0xabc",
+             base_url: "unused",
+             dex: "xyz",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) == {:ok, [Ultramoist.Positions.Position.parse(raw)]}
+  end
+
   test "parses a full clearinghouseState payload into positions, account value, and time" do
     raw_position = %{
       "position" => %{

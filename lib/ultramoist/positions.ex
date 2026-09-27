@@ -3,12 +3,13 @@ defmodule Ultramoist.Positions do
 
   def fetch(user, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
+    dex = Keyword.get(opts, :dex)
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
 
     request_opts = Keyword.merge(http_opts, base_url: base_url)
+    body = Ultramoist.Dex.merge_dex(%{"type" => "clearinghouseState", "user" => user}, dex)
 
-    with {:ok, %{"assetPositions" => positions}} <-
-           http.info_request(%{"type" => "clearinghouseState", "user" => user}, request_opts) do
+    with {:ok, %{"assetPositions" => positions}} <- http.info_request(body, request_opts) do
       {:ok, Enum.map(positions, &Ultramoist.Positions.Position.parse/1)}
     end
   end

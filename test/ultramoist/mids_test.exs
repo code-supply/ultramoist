@@ -24,6 +24,18 @@ defmodule Ultramoist.MidsTest do
              {:error, :not_found}
   end
 
+  test "fetches a builder-deployed dex's mid prices by passing its dex parameter" do
+    stub = fn %{"type" => "allMids", "dex" => "xyz"}, _opts ->
+      {:ok, %{"xyz:GOLD" => "4281.0"}}
+    end
+
+    assert Ultramoist.Mids.fetch("xyz:GOLD",
+             base_url: "unused",
+             dex: "xyz",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) == {:ok, Decimal.new("4281.0")}
+  end
+
   test "parses a raw mids map into decimal prices" do
     raw = %{"BTC" => "50000.5", "ETH" => "2500.25"}
 

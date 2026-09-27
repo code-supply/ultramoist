@@ -1,6 +1,19 @@
 defmodule Ultramoist.DexTest do
   use ExUnit.Case, async: true
 
+  describe "merge_dex/2" do
+    test "leaves a request body unchanged for the native dex" do
+      assert Ultramoist.Dex.merge_dex(%{"type" => "allMids"}, nil) == %{"type" => "allMids"}
+    end
+
+    test "adds a dex field to a request body for a builder-deployed dex" do
+      assert Ultramoist.Dex.merge_dex(%{"type" => "allMids"}, "xyz") == %{
+               "type" => "allMids",
+               "dex" => "xyz"
+             }
+    end
+  end
+
   describe "asset_id_offset/1" do
     test "has no offset for the native dex" do
       assert Ultramoist.Dex.asset_id_offset(nil) == 0

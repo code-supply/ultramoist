@@ -3,10 +3,12 @@ defmodule Ultramoist.Mids do
 
   def fetch(coin, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
+    dex = Keyword.get(opts, :dex)
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
     request_opts = Keyword.merge(http_opts, base_url: base_url)
+    body = Ultramoist.Dex.merge_dex(%{"type" => "allMids"}, dex)
 
-    with {:ok, mids} <- http.info_request(%{"type" => "allMids"}, request_opts),
+    with {:ok, mids} <- http.info_request(body, request_opts),
          {:ok, price} <- fetch_price(mids, coin) do
       {:ok, Decimal.new(price)}
     else

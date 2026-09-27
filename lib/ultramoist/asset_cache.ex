@@ -22,7 +22,8 @@ defmodule Ultramoist.AssetCache do
     index =
       dexs
       |> Enum.map(fn dex ->
-        {:ok, %{"universe" => universe}} = http.info_request(meta_body(dex), request_opts)
+        body = Ultramoist.Dex.merge_dex(%{"type" => "meta"}, dex)
+        {:ok, %{"universe" => universe}} = http.info_request(body, request_opts)
         build_index(universe, Map.get(perp_dex_indices, dex))
       end)
       |> Enum.reduce(&Map.merge/2)
@@ -44,9 +45,6 @@ defmodule Ultramoist.AssetCache do
       {name, %{asset_index: offset + local_index, size_decimals: size_decimals}}
     end)
   end
-
-  defp meta_body(nil), do: %{"type" => "meta"}
-  defp meta_body(dex), do: %{"type" => "meta", "dex" => dex}
 
   defp perp_dex_indices(dexs, http, request_opts) do
     if Enum.any?(dexs, & &1) do
