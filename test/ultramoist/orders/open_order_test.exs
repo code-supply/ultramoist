@@ -24,4 +24,22 @@ defmodule Ultramoist.Orders.OpenOrderTest do
              reduce_only: false
            }
   end
+
+  # @spec ORD-DATA-018
+  test "parses a raw open order's cloid into client_id" do
+    raw = %{
+      "coin" => "LDO",
+      "side" => "B",
+      "limitPx" => "0.373",
+      "sz" => "100",
+      "oid" => 12345,
+      "timestamp" => 1_700_000_000_000,
+      "origSz" => "250",
+      "reduceOnly" => false,
+      "cloid" => "0x1234567890abcdef1234567890abcdef"
+    }
+
+    assert %Ultramoist.Orders.OpenOrder{client_id: "0x1234567890abcdef1234567890abcdef"} =
+             Ultramoist.Orders.OpenOrder.parse(raw)
+  end
 end

@@ -6,13 +6,17 @@ defmodule Ultramoist.Orders.Order do
   # @spec ORD-DATA-001
   # @spec ORD-DATA-008
   # @spec ORD-DATA-015
+  # @spec ORD-DATA-016
   def build_place_action(asset_index, is_buy, limit_px, sz, opts \\ []) do
     reduce_only = Keyword.get(opts, :reduce_only, false)
     time_in_force = Keyword.get(opts, :time_in_force)
+    client_id = Keyword.get(opts, :client_id)
 
     [
       type: "order",
-      orders: [order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force)],
+      orders: [
+        order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force, client_id)
+      ],
       grouping: "na"
     ]
   end
@@ -29,8 +33,8 @@ defmodule Ultramoist.Orders.Order do
     ]
   end
 
-  defp order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force) do
-    [
+  defp order_spec(asset_index, is_buy, limit_px, sz, reduce_only, time_in_force, client_id \\ nil) do
+    base = [
       a: asset_index,
       b: is_buy,
       p: limit_px,
@@ -38,6 +42,8 @@ defmodule Ultramoist.Orders.Order do
       r: reduce_only,
       t: [limit: [tif: tif(time_in_force)]]
     ]
+
+    if client_id, do: base ++ [c: client_id], else: base
   end
 
   defp tif(:post_only), do: "Alo"
@@ -123,6 +129,7 @@ defmodule Ultramoist.Orders.Order do
   # @spec ORD-API-001
   # @spec ORD-API-004
   # @spec ORD-API-007
+  # @spec ORD-API-008
   def place_limit(cache_pid, coin, is_buy, limit_px, sz, opts) do
     with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
            Ultramoist.AssetCache.lookup(cache_pid, coin) do
@@ -132,7 +139,8 @@ defmodule Ultramoist.Orders.Order do
       action =
         build_place_action(asset_index, is_buy, formatted_price, formatted_size,
           reduce_only: Keyword.get(opts, :reduce_only, false),
-          time_in_force: Keyword.get(opts, :time_in_force)
+          time_in_force: Keyword.get(opts, :time_in_force),
+          client_id: Keyword.get(opts, :client_id)
         )
 
       with {:ok, response} <- sign_and_submit(action, opts) do

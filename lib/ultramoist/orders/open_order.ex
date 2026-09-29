@@ -9,7 +9,8 @@ defmodule Ultramoist.Orders.OpenOrder do
     :order_id,
     :reduce_only,
     :timestamp,
-    :original_size
+    :original_size,
+    :client_id
   ]
 
   def parse(order) do
@@ -21,7 +22,8 @@ defmodule Ultramoist.Orders.OpenOrder do
       order_id: order["oid"],
       reduce_only: order["reduceOnly"],
       timestamp: Ultramoist.Timestamp.parse(order["timestamp"]),
-      original_size: Decimal.new(order["origSz"])
+      original_size: Decimal.new(order["origSz"]),
+      client_id: order["cloid"]
     }
   end
 end
