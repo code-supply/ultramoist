@@ -7,6 +7,28 @@ defmodule Ultramoist.MsgpackTest do
     assert Ultramoist.Msgpack.encode("hello world") == <<0xAB, "hello world">>
   end
 
+  test "encodes a string too long for fixstr using the str8 format" do
+    thirty_two = String.duplicate("a", 32)
+    two_fifty_five = String.duplicate("b", 255)
+
+    assert Ultramoist.Msgpack.encode(thirty_two) == <<0xD9, 32>> <> thirty_two
+    assert Ultramoist.Msgpack.encode(two_fifty_five) == <<0xD9, 255>> <> two_fifty_five
+  end
+
+  test "encodes a string too long for str8 using the str16 format" do
+    two_fifty_six = String.duplicate("c", 256)
+    max_str16 = String.duplicate("d", 65_535)
+
+    assert Ultramoist.Msgpack.encode(two_fifty_six) == <<0xDA, 256::16>> <> two_fifty_six
+    assert Ultramoist.Msgpack.encode(max_str16) == <<0xDA, 65_535::16>> <> max_str16
+  end
+
+  test "encodes a string too long for str16 using the str32 format" do
+    past_str16 = String.duplicate("e", 65_536)
+
+    assert Ultramoist.Msgpack.encode(past_str16) == <<0xDB, 65_536::32>> <> past_str16
+  end
+
   # @spec MPK-DATA-001
   test "encodes a flat keyword list as a map, in order" do
     assert Ultramoist.Msgpack.encode(a: "x", b: "y") ==
