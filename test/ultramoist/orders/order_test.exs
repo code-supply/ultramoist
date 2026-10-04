@@ -1,6 +1,25 @@
 defmodule Ultramoist.Orders.OrderTest do
   use ExUnit.Case, async: true
 
+  # @spec ORD-DATA-019
+  # @spec ORD-DATA-020
+  test "builds a reduce-only stop-market order action from an asset index, side, trigger price, limit price, and size" do
+    assert Ultramoist.Orders.Order.build_place_stop_action(0, false, "95.0", "94.0", "0.1") == [
+             type: "order",
+             orders: [
+               [
+                 a: 0,
+                 b: false,
+                 p: "94.0",
+                 s: "0.1",
+                 r: true,
+                 t: [trigger: [isMarket: true, triggerPx: "95.0", tpsl: "sl"]]
+               ]
+             ],
+             grouping: "na"
+           ]
+  end
+
   # @spec ORD-DATA-001
   test "builds a GTC limit-order action from an asset index, side, price, and size" do
     assert Ultramoist.Orders.Order.build_place_action(0, true, "100.5", "0.1") == [
@@ -310,6 +329,38 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 99}
+  end
+
+  # @spec ORD-API-009
+  test "places a stop order for a known coin: resolves asset index, signs, submits, returns order id" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    exchange_stub = fn _action, _opts ->
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{
+           "type" => "order",
+           "data" => %{"statuses" => [%{"resting" => %{"oid" => 100}}]}
+         }
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.place_stop(cache_pid, "BTC", false, "95.0", "94.0", "0.001",
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == {:ok, 100}
   end
 
   # @spec ORD-API-005

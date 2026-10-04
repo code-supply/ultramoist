@@ -21,6 +21,25 @@ defmodule Ultramoist.Orders.Order do
     ]
   end
 
+  # @spec ORD-DATA-019
+  # @spec ORD-DATA-020
+  def build_place_stop_action(asset_index, is_buy, trigger_px, limit_px, sz) do
+    [
+      type: "order",
+      orders: [
+        [
+          a: asset_index,
+          b: is_buy,
+          p: limit_px,
+          s: sz,
+          r: true,
+          t: [trigger: [isMarket: true, triggerPx: trigger_px, tpsl: "sl"]]
+        ]
+      ],
+      grouping: "na"
+    ]
+  end
+
   # @spec ORD-DATA-010
   def build_batch_place_action(orders) do
     [
@@ -141,6 +160,29 @@ defmodule Ultramoist.Orders.Order do
           reduce_only: Keyword.get(opts, :reduce_only, false),
           time_in_force: Keyword.get(opts, :time_in_force),
           client_id: Keyword.get(opts, :client_id)
+        )
+
+      with {:ok, response} <- sign_and_submit(action, opts) do
+        parse_place_response(response)
+      end
+    end
+  end
+
+  # @spec ORD-API-009
+  def place_stop(cache_pid, coin, is_buy, trigger_px, limit_px, sz, opts) do
+    with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
+           Ultramoist.AssetCache.lookup(cache_pid, coin) do
+      formatted_trigger_price = format_price(trigger_px, size_decimals)
+      formatted_limit_price = format_price(limit_px, size_decimals)
+      formatted_size = format_size(sz, size_decimals)
+
+      action =
+        build_place_stop_action(
+          asset_index,
+          is_buy,
+          formatted_trigger_price,
+          formatted_limit_price,
+          formatted_size
         )
 
       with {:ok, response} <- sign_and_submit(action, opts) do

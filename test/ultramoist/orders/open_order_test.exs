@@ -25,6 +25,27 @@ defmodule Ultramoist.Orders.OpenOrderTest do
            }
   end
 
+  # @spec ORD-DATA-021
+  test "parses a trigger order's triggerPx into trigger_price" do
+    raw = %{
+      "coin" => "LDO",
+      "side" => "A",
+      "limitPx" => "0.373",
+      "sz" => "100",
+      "oid" => 12345,
+      "timestamp" => 1_700_000_000_000,
+      "origSz" => "250",
+      "reduceOnly" => true,
+      "isTrigger" => true,
+      "triggerPx" => "0.350"
+    }
+
+    assert %Ultramoist.Orders.OpenOrder{trigger_price: %Decimal{} = trigger_price} =
+             Ultramoist.Orders.OpenOrder.parse(raw)
+
+    assert Decimal.equal?(trigger_price, Decimal.new("0.350"))
+  end
+
   # @spec ORD-DATA-018
   test "parses a raw open order's cloid into client_id" do
     raw = %{

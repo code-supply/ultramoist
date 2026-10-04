@@ -10,7 +10,8 @@ defmodule Ultramoist.Orders.OpenOrder do
     :reduce_only,
     :timestamp,
     :original_size,
-    :client_id
+    :client_id,
+    :trigger_price
   ]
 
   def parse(order) do
@@ -23,7 +24,14 @@ defmodule Ultramoist.Orders.OpenOrder do
       reduce_only: order["reduceOnly"],
       timestamp: Ultramoist.Timestamp.parse(order["timestamp"]),
       original_size: Decimal.new(order["origSz"]),
-      client_id: order["cloid"]
+      client_id: order["cloid"],
+      trigger_price: trigger_price(order)
     }
   end
+
+  defp trigger_price(%{"isTrigger" => true, "triggerPx" => trigger_px}) do
+    Decimal.new(trigger_px)
+  end
+
+  defp trigger_price(_order), do: nil
 end
