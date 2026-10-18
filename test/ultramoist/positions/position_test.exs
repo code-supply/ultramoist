@@ -25,6 +25,23 @@ defmodule Ultramoist.Positions.PositionTest do
            }
   end
 
+  # @spec POS-DATA-002
+  test "parses an isolated margin mode" do
+    raw = %{
+      "position" => %{
+        "coin" => "LDO",
+        "szi" => "-3250.0",
+        "entryPx" => "0.29601",
+        "unrealizedPnl" => "-4.9225",
+        "marginUsed" => "192.5065",
+        "leverage" => %{"type" => "isolated", "value" => 10}
+      },
+      "type" => "oneWay"
+    }
+
+    assert Ultramoist.Positions.Position.parse(raw).margin_mode == :isolated
+  end
+
   # @spec POS-DATA-001
   test "parses a position's liquidationPx into liquidation_price" do
     raw = %{

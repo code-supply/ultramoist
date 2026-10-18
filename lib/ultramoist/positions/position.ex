@@ -30,10 +30,14 @@ defmodule Ultramoist.Positions.Position do
       unrealized_pnl: Decimal.new(unrealized_pnl),
       margin_used: Decimal.new(margin_used),
       leverage: leverage,
-      margin_mode: String.to_existing_atom(margin_mode),
+      margin_mode: margin_mode(margin_mode),
       liquidation_price: liquidation_price(position["liquidationPx"])
     }
   end
+
+  # @spec POS-DATA-002
+  defp margin_mode("cross"), do: :cross
+  defp margin_mode("isolated"), do: :isolated
 
   defp liquidation_price(nil), do: nil
   defp liquidation_price(liquidation_px), do: Decimal.new(liquidation_px)
