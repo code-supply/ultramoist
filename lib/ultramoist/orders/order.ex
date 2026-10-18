@@ -308,7 +308,8 @@ defmodule Ultramoist.Orders.Order do
   defp sign_and_submit(action, opts) do
     priv_key = Keyword.fetch!(opts, :priv_key)
     source = Keyword.fetch!(opts, :source)
-    vault_address = Keyword.get(opts, :vault_address)
+    # @spec ORD-API-010
+    vault_address = opts |> Keyword.get(:vault_address) |> lowercase_address()
     {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
 
     next_nonce =
@@ -321,7 +322,7 @@ defmodule Ultramoist.Orders.Order do
         nonce: nonce,
         source: source,
         priv_key: priv_key,
-        vault_address: vault_address
+        vault_address: address_bytes(vault_address)
       )
 
     signature = %{
@@ -344,4 +345,10 @@ defmodule Ultramoist.Orders.Order do
 
     http.exchange_request(action, request_opts)
   end
+
+  defp lowercase_address(nil), do: nil
+  defp lowercase_address(address), do: String.downcase(address)
+
+  defp address_bytes(nil), do: nil
+  defp address_bytes("0x" <> hex), do: Base.decode16!(hex, case: :lower)
 end

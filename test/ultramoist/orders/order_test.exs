@@ -671,6 +671,63 @@ defmodule Ultramoist.Orders.OrderTest do
            ) == :ok
   end
 
+  # @spec ORD-API-010
+  test "acting for a sub-account signs over its address bytes and submits it as lowercase hex" do
+    test_pid = self()
+
+    exchange_stub = fn action, opts ->
+      send(test_pid, {:submitted, action, opts})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+    sub_account_hex = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01"
+
+    {:ok, sub_account_bytes} =
+      Base.decode16("AbCdEf0123456789aBcDeF0123456789AbCdEf01", case: :mixed)
+
+    assert Ultramoist.Orders.Order.cancel(
+             asset_index: 0,
+             order_id: 99,
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             vault_address: sub_account_hex,
+             http: {Ultramoist.FakeHttp, stub: exchange_stub},
+             nonce: fn -> 1_700_000_000_000 end
+           ) == :ok
+
+    assert_received {:submitted, action, opts}
+    assert Keyword.fetch!(opts, :vault_address) == "0xabcdef0123456789abcdef0123456789abcdef01"
+
+    %{"r" => "0x" <> hex_r, "s" => "0x" <> hex_s} = Keyword.fetch!(opts, :signature)
+
+    der =
+      :public_key.der_encode(
+        :"ECDSA-Sig-Value",
+        {:"ECDSA-Sig-Value", String.to_integer(hex_r, 16), String.to_integer(hex_s, 16)}
+      )
+
+    {pub_key, _priv} = :crypto.generate_key(:ecdh, :secp256k1, priv_key)
+
+    connection_id =
+      Ultramoist.Keccak.hash256(
+        Ultramoist.Msgpack.encode(action) <>
+          <<1_700_000_000_000::64>> <> <<1>> <> sub_account_bytes
+      )
+
+    struct_hash =
+      Ultramoist.Eip712.agent_struct_hash(Ultramoist.Signer.testnet_source(), connection_id)
+
+    digest = Ultramoist.Eip712.signing_digest(Ultramoist.Eip712.domain_separator(), struct_hash)
+
+    assert :crypto.verify(:ecdsa, :sha256, {:digest, digest}, der, [pub_key, :secp256k1])
+  end
+
   # @spec ORD-API-006
   test "cancels a batch of orders in one request: signs once, submits once, returns per-cancel results" do
     exchange_stub = fn _action, _opts ->
