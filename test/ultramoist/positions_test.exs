@@ -24,6 +24,24 @@ defmodule Ultramoist.PositionsTest do
            ) == {:ok, [Ultramoist.Positions.Position.parse(raw)]}
   end
 
+  test "fetches a user's account value from their clearinghouse state" do
+    stub = fn %{"type" => "clearinghouseState", "user" => "0xabc"}, _opts ->
+      {:ok, %{"marginSummary" => %{"accountValue" => "622.39"}, "assetPositions" => []}}
+    end
+
+    assert Ultramoist.Positions.fetch_account_value("0xabc",
+             base_url: "unused",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) == {:ok, Decimal.new("622.39")}
+
+    failing = fn _body, _opts -> {:error, :rate_limited} end
+
+    assert Ultramoist.Positions.fetch_account_value("0xabc",
+             base_url: "unused",
+             http: {Ultramoist.FakeHttp, stub: failing}
+           ) == {:error, :rate_limited}
+  end
+
   test "fetches a builder-deployed dex's positions by passing its dex parameter" do
     raw = %{
       "position" => %{

@@ -14,6 +14,19 @@ defmodule Ultramoist.Positions do
     end
   end
 
+  def fetch_account_value(user, opts) do
+    base_url = Keyword.fetch!(opts, :base_url)
+    {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
+
+    request_opts = Keyword.merge(http_opts, base_url: base_url)
+    body = %{"type" => "clearinghouseState", "user" => user}
+
+    with {:ok, %{"marginSummary" => %{"accountValue" => account_value}}} <-
+           http.info_request(body, request_opts) do
+      {:ok, Decimal.new(account_value)}
+    end
+  end
+
   def parse(%{
         "marginSummary" => %{"accountValue" => account_value},
         "time" => time,
