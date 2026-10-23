@@ -197,6 +197,54 @@ defmodule Ultramoist.RealNetworkVerificationTest do
     assert is_list(positions)
   end
 
+  test "fetches a real native coin's mid price, and a universe that includes it" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, price} = Ultramoist.Mids.fetch("BTC", base_url: base_url)
+    assert Decimal.gt?(price, 0)
+
+    assert {:ok, assets} = Ultramoist.Universe.fetch(base_url: base_url)
+    assert length(assets) > 50
+    assert Enum.any?(assets, &(&1.name == "BTC"))
+  end
+
+  test "fetches a real wallet's account value" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, %Decimal{}} =
+             Ultramoist.Positions.fetch_account_value(
+               "0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F",
+               base_url: base_url
+             )
+  end
+
+  test "fetches a real coin's funding rate history across more than one page, in order" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+    now = System.system_time(:millisecond)
+
+    assert {:ok, rates} =
+             Ultramoist.FundingRates.fetch("BTC", now - :timer.hours(24 * 30), now,
+               base_url: base_url
+             )
+
+    assert length(rates) > 500
+    assert Enum.all?(rates, &match?(%Ultramoist.FundingRate{coin: "BTC"}, &1))
+    assert rates == Enum.sort_by(rates, & &1.time, NaiveDateTime)
+  end
+
+  test "fetches a real coin's candles in order, and none for a window before it existed" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+    now = System.system_time(:millisecond)
+
+    assert {:ok, [_first | _rest] = candles} =
+             Ultramoist.Candles.fetch("BTC", "1h", now - :timer.hours(24), now,
+               base_url: base_url
+             )
+
+    assert candles == Enum.sort_by(candles, & &1.open_time, NaiveDateTime)
+    assert {:ok, []} = Ultramoist.Candles.fetch("BTC", "1h", 0, 1000, base_url: base_url)
+  end
+
   test "fetches a real wallet's HIP-3 dex-scoped open orders without erroring" do
     base_url = Ultramoist.Config.info_url(:mainnet)
 
