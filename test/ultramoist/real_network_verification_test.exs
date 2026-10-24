@@ -208,6 +208,15 @@ defmodule Ultramoist.RealNetworkVerificationTest do
     assert Enum.any?(assets, &(&1.name == "BTC"))
   end
 
+  test "fetches a real wallet's all-time portfolio P&L history" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, %{"allTime" => %{pnl_history: [{%NaiveDateTime{}, %Decimal{}} | _rest]}}} =
+             Ultramoist.Portfolio.fetch("0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F",
+               base_url: base_url
+             )
+  end
+
   test "fetches a real wallet's account value" do
     base_url = Ultramoist.Config.info_url(:mainnet)
 
