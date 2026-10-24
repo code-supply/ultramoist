@@ -11,6 +11,7 @@ defmodule Ultramoist.Http do
   def info_request(body, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
     metadata = %{base_url: base_url, type: body["type"]}
+    ensure_real_network_enabled!(opts, metadata)
 
     :telemetry.span([:ultramoist, :http, :info_request], metadata, fn ->
       result =
@@ -30,6 +31,7 @@ defmodule Ultramoist.Http do
   def stats_request(type, opts) do
     base_url = Keyword.fetch!(opts, :base_url)
     metadata = %{base_url: base_url, type: type}
+    ensure_real_network_enabled!(opts, metadata)
 
     :telemetry.span([:ultramoist, :http, :stats_request], metadata, fn ->
       {unwrap(Req.get(base_url <> "/" <> type, receive_timeout: @receive_timeout)), metadata}
@@ -52,6 +54,7 @@ defmodule Ultramoist.Http do
     }
 
     metadata = %{base_url: base_url, type: json_action["type"]}
+    ensure_real_network_enabled!(opts, metadata)
 
     :telemetry.span([:ultramoist, :http, :exchange_request], metadata, fn ->
       result =
@@ -59,6 +62,17 @@ defmodule Ultramoist.Http do
 
       {result, metadata}
     end)
+  end
+
+  # A test suite turns this off so a request that should have gone to a fake
+  # fails at the call that made it, instead of reaching Hyperliquid.
+  defp ensure_real_network_enabled!(opts, metadata) do
+    enabled? =
+      Keyword.get_lazy(opts, :real_network, fn ->
+        Application.get_env(:ultramoist, :real_network, true)
+      end)
+
+    unless enabled?, do: raise("real network requests are disabled: #{inspect(metadata)}")
   end
 
   defp to_json(keyword_list) when is_list(keyword_list) do

@@ -1,6 +1,25 @@
 defmodule Ultramoist.HttpTest do
   use ExUnit.Case, async: true
 
+  test "refuses every kind of request while the real network is disabled" do
+    opts = [base_url: "http://unused.invalid", real_network: false]
+
+    assert_raise RuntimeError, ~r/real network/, fn ->
+      Ultramoist.Http.info_request(%{"type" => "meta"}, opts)
+    end
+
+    assert_raise RuntimeError, ~r/real network/, fn ->
+      Ultramoist.Http.stats_request("vaults", opts)
+    end
+
+    assert_raise RuntimeError, ~r/real network/, fn ->
+      Ultramoist.Http.exchange_request(
+        [type: "cancel"],
+        opts ++ [signature: %{}, nonce: 1, vault_address: nil]
+      )
+    end
+  end
+
   # @spec HTTP-API-001
   test "makes a generic info request against the real testnet host" do
     assert {:ok, %{"universe" => [%{"name" => _name} | _rest]}} =
