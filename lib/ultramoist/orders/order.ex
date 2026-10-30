@@ -142,6 +142,11 @@ defmodule Ultramoist.Orders.Order do
     Enum.map(statuses, &parse_cancel_status/1)
   end
 
+  # @spec ORD-DATA-022
+  def parse_batch_cancel_response(%{"status" => "err", "response" => reason}) do
+    {:error, reason}
+  end
+
   defp parse_cancel_status("success"), do: :ok
   defp parse_cancel_status(%{"error" => reason}), do: {:error, reason}
 

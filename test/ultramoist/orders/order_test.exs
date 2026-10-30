@@ -280,6 +280,17 @@ defmodule Ultramoist.Orders.OrderTest do
            ]
   end
 
+  # @spec ORD-DATA-022
+  test "parses a batch cancel rejected before it reached order processing into a single overall error" do
+    response = %{
+      "status" => "err",
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+    }
+
+    assert Ultramoist.Orders.Order.parse_batch_cancel_response(response) ==
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+  end
+
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
     assert Ultramoist.Orders.Order.format_price("50000.123456", 5) == "50000"
     assert Ultramoist.Orders.Order.format_price(50000, 5) == "50000"
