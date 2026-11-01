@@ -15,4 +15,15 @@ defmodule Ultramoist.Orders do
       {:ok, Enum.map(orders || [], &Ultramoist.Orders.OpenOrder.parse/1)}
     end
   end
+
+  # @spec ORDS-API-003
+  def fetch_historical(user, opts) do
+    {http, http_opts} = Keyword.get(opts, :http, {Ultramoist.Http, []})
+    request_opts = Keyword.merge(http_opts, base_url: Keyword.fetch!(opts, :base_url))
+
+    with {:ok, orders} <-
+           http.info_request(%{"type" => "historicalOrders", "user" => user}, request_opts) do
+      {:ok, Enum.map(orders, &Ultramoist.Orders.HistoricalOrder.parse/1)}
+    end
+  end
 end

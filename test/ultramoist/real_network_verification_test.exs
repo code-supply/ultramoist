@@ -217,6 +217,17 @@ defmodule Ultramoist.RealNetworkVerificationTest do
              )
   end
 
+  test "fetches a real wallet's historical orders" do
+    base_url = Ultramoist.Config.info_url(:mainnet)
+
+    assert {:ok, [%Ultramoist.Orders.HistoricalOrder{} | _rest] = orders} =
+             Ultramoist.Orders.fetch_historical("0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F",
+               base_url: base_url
+             )
+
+    assert Enum.all?(orders, &(is_binary(&1.coin) and match?(%NaiveDateTime{}, &1.status_time)))
+  end
+
   test "fetches a real wallet's account value" do
     base_url = Ultramoist.Config.info_url(:mainnet)
 

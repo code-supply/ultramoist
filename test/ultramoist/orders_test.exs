@@ -52,4 +52,51 @@ defmodule Ultramoist.OrdersTest do
              http: {Ultramoist.FakeHttp, stub: stub}
            ) == {:ok, []}
   end
+
+  # @spec ORDS-API-003
+  test "fetches a user's historical orders, each with its coin, type, status and when it reached it" do
+    triggered = %{
+      "order" => %{
+        "coin" => "HYPE",
+        "oid" => 64_205_242_052,
+        "orderType" => "Stop Market",
+        "isTrigger" => true,
+        "triggerPx" => "86.588"
+      },
+      "status" => "triggered",
+      "statusTimestamp" => 1_793_492_261_396
+    }
+
+    canceled = %{
+      "order" => %{"coin" => "SOL", "oid" => 7, "orderType" => "Limit", "isTrigger" => false},
+      "status" => "canceled",
+      "statusTimestamp" => 1_793_492_000_000
+    }
+
+    stub = fn %{"type" => "historicalOrders", "user" => "0xabc"}, _opts ->
+      {:ok, [triggered, canceled]}
+    end
+
+    assert Ultramoist.Orders.fetch_historical("0xabc",
+             base_url: "unused",
+             http: {Ultramoist.FakeHttp, stub: stub}
+           ) ==
+             {:ok,
+              [
+                %Ultramoist.Orders.HistoricalOrder{
+                  coin: "HYPE",
+                  order_id: 64_205_242_052,
+                  order_type: "Stop Market",
+                  status: "triggered",
+                  status_time: Ultramoist.Timestamp.parse(1_793_492_261_396)
+                },
+                %Ultramoist.Orders.HistoricalOrder{
+                  coin: "SOL",
+                  order_id: 7,
+                  order_type: "Limit",
+                  status: "canceled",
+                  status_time: Ultramoist.Timestamp.parse(1_793_492_000_000)
+                }
+              ]}
+  end
 end
