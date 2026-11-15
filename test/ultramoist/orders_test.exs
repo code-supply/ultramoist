@@ -54,21 +54,28 @@ defmodule Ultramoist.OrdersTest do
   end
 
   # @spec ORDS-API-003
-  test "fetches a user's historical orders, each with its coin, type, status and when it reached it" do
+  test "fetches a user's historical orders, each with its coin, type, size, status and when it reached it" do
     triggered = %{
       "order" => %{
         "coin" => "HYPE",
         "oid" => 64_205_242_052,
         "orderType" => "Stop Market",
         "isTrigger" => true,
-        "triggerPx" => "86.588"
+        "triggerPx" => "86.588",
+        "origSz" => "142.96"
       },
       "status" => "triggered",
       "statusTimestamp" => 1_793_492_261_396
     }
 
     canceled = %{
-      "order" => %{"coin" => "SOL", "oid" => 7, "orderType" => "Limit", "isTrigger" => false},
+      "order" => %{
+        "coin" => "SOL",
+        "oid" => 7,
+        "orderType" => "Limit",
+        "isTrigger" => false,
+        "origSz" => "1.5"
+      },
       "status" => "canceled",
       "statusTimestamp" => 1_793_492_000_000
     }
@@ -87,6 +94,7 @@ defmodule Ultramoist.OrdersTest do
                   coin: "HYPE",
                   order_id: 64_205_242_052,
                   order_type: "Stop Market",
+                  size: Decimal.new("142.96"),
                   status: "triggered",
                   status_time: Ultramoist.Timestamp.parse(1_793_492_261_396)
                 },
@@ -94,6 +102,7 @@ defmodule Ultramoist.OrdersTest do
                   coin: "SOL",
                   order_id: 7,
                   order_type: "Limit",
+                  size: Decimal.new("1.5"),
                   status: "canceled",
                   status_time: Ultramoist.Timestamp.parse(1_793_492_000_000)
                 }
