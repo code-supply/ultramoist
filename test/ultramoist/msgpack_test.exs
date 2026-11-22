@@ -7,6 +7,11 @@ defmodule Ultramoist.MsgpackTest do
     assert Ultramoist.Msgpack.encode("hello world") == <<0xAB, "hello world">>
   end
 
+  test "encodes nil as msgpack's nil, inside a map too" do
+    assert Ultramoist.Msgpack.encode(nil) == <<0xC0>>
+    assert Ultramoist.Msgpack.encode(a: nil) == <<0x81, 0xA1, "a", 0xC0>>
+  end
+
   test "encodes a string too long for fixstr using the str8 format" do
     thirty_two = String.duplicate("a", 32)
     two_fifty_five = String.duplicate("b", 255)

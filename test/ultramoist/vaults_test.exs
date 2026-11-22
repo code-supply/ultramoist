@@ -266,8 +266,7 @@ defmodule Ultramoist.VaultsTest do
     ]
 
     stub = fn
-      %{"type" => "userFunding", "user" => "0xabc", "startTime" => 1, "endTime" => 3000},
-      _opts ->
+      %{"type" => "userFunding", "user" => "0xabc", "startTime" => 1, "endTime" => 3000}, _opts ->
         {:ok, first_page}
 
       %{"type" => "userFunding", "user" => "0xabc", "startTime" => 500, "endTime" => 3000},

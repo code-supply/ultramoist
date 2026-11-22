@@ -4,6 +4,7 @@ defmodule Ultramoist.Msgpack do
   @fixstr_marker 0xA0
   @fixmap_marker 0x80
   @fixarray_marker 0x90
+  @nil_marker 0xC0
   @false_marker 0xC2
   @true_marker 0xC3
   @uint8_marker 0xCC
@@ -20,6 +21,9 @@ defmodule Ultramoist.Msgpack do
 
   def encode(value) do
     case value do
+      nil ->
+        <<@nil_marker>>
+
       true ->
         <<@true_marker>>
 
