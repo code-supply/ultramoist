@@ -442,6 +442,58 @@ defmodule Ultramoist.Orders.OrderTest do
                      ]}
   end
 
+  test "places a trailing stop that retraces by a fraction of price, sent as a percentage rounded down to three places" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "HMSTR", "szDecimals" => 0}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    test_pid = self()
+
+    exchange_stub = fn action, _opts ->
+      send(test_pid, {:submitted, action})
+
+      {:ok,
+       %{"status" => "ok", "response" => %{"type" => "trailingStop", "data" => %{"oid" => 7}}}}
+    end
+
+    opts = [
+      priv_key: :crypto.hash(:sha256, "order test private key"),
+      source: Ultramoist.Signer.testnet_source(),
+      http: {Ultramoist.FakeHttp, stub: exchange_stub}
+    ]
+
+    assert Ultramoist.Orders.Order.place_trailing_stop(
+             cache_pid,
+             "HMSTR",
+             true,
+             "40124311",
+             {:pct, Decimal.new("0.0067899")},
+             opts
+           ) == {:ok, 7}
+
+    assert_received {:submitted, action}
+    assert action[:retracement] == [pct: "0.678%"]
+
+    {:ok, 7} =
+      Ultramoist.Orders.Order.place_trailing_stop(
+        cache_pid,
+        "HMSTR",
+        true,
+        "40124311",
+        {:pct, Decimal.new("0.02")},
+        opts
+      )
+
+    assert_received {:submitted, action}
+    assert action[:retracement] == [pct: "2%"]
+  end
+
   # @spec ORD-API-005
   test "places a batch of limit orders in one request: resolves each asset index, signs once, submits once, returns per-order results" do
     meta_stub = fn %{"type" => "meta"}, _opts ->

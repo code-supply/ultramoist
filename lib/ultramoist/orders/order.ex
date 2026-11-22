@@ -215,7 +215,7 @@ defmodule Ultramoist.Orders.Order do
     end
   end
 
-  def place_trailing_stop(cache_pid, coin, is_buy, sz, {:px, distance}, opts) do
+  def place_trailing_stop(cache_pid, coin, is_buy, sz, retracement, opts) do
     with {:ok, %{asset_index: asset_index, size_decimals: size_decimals}} <-
            Ultramoist.AssetCache.lookup(cache_pid, coin) do
       action =
@@ -224,7 +224,7 @@ defmodule Ultramoist.Orders.Order do
           is_buy,
           format_size(sz, size_decimals),
           Keyword.get(opts, :reduce_only, true),
-          {:px, format_price(distance, size_decimals)},
+          format_retracement(retracement, size_decimals),
           opts |> Keyword.get(:activation_px) |> format_activation_price(size_decimals)
         )
 
@@ -233,6 +233,21 @@ defmodule Ultramoist.Orders.Order do
         parse_trailing_stop_response(response)
       end
     end
+  end
+
+  defp format_retracement({:px, distance}, size_decimals),
+    do: {:px, format_price(distance, size_decimals)}
+
+  defp format_retracement({:pct, fraction}, _size_decimals) do
+    percent =
+      fraction
+      |> to_decimal()
+      |> Decimal.mult(100)
+      |> Decimal.round(3, :down)
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+
+    {:pct, percent <> "%"}
   end
 
   defp format_activation_price(nil, _size_decimals), do: nil

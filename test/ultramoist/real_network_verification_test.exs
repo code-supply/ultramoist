@@ -302,6 +302,46 @@ defmodule Ultramoist.RealNetworkVerificationTest do
              Ultramoist.Orders.Order.cancel(opts ++ [asset_index: asset_index, order_id: order_id])
   end
 
+  test "places a real trailing stop on a very low-priced coin that retraces by a percentage, then cancels it" do
+    priv_key =
+      "ULTRAMOIST_TESTNET_PRIV_KEY"
+      |> System.fetch_env!()
+      |> String.trim_leading("0x")
+      |> Base.decode16!(case: :mixed)
+
+    user = "0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F"
+    base_url = Ultramoist.Config.info_url(:testnet)
+    {:ok, mids} = Ultramoist.Http.info_request(%{"type" => "allMids"}, base_url: base_url)
+    {:ok, cache_pid} = Ultramoist.AssetCache.start_link(base_url: base_url)
+    opts = [priv_key: priv_key, source: Ultramoist.Signer.testnet_source(), base_url: base_url]
+
+    # Not reduce-only, so it can rest without a position; tracking only starts
+    # once HMSTR doubles, so it never fires.
+    assert {:ok, order_id} =
+             Ultramoist.Orders.Order.place_trailing_stop(
+               cache_pid,
+               "HMSTR",
+               false,
+               "100000",
+               {:pct, Decimal.new("0.0067899")},
+               opts ++
+                 [
+                   reduce_only: false,
+                   activation_px: mids["HMSTR"] |> Decimal.new() |> Decimal.mult(2)
+                 ]
+             )
+
+    {:ok, orders} = Ultramoist.Orders.fetch_open(user, base_url: base_url)
+
+    assert %Ultramoist.Orders.OpenOrder{order_type: "Trailing Stop Market"} =
+             Enum.find(orders, &(&1.order_id == order_id))
+
+    {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "HMSTR")
+
+    assert :ok =
+             Ultramoist.Orders.Order.cancel(opts ++ [asset_index: asset_index, order_id: order_id])
+  end
+
   test "fetches a real wallet's HIP-3 dex-scoped open orders without erroring" do
     base_url = Ultramoist.Config.info_url(:mainnet)
 
