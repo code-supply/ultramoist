@@ -152,16 +152,16 @@ defmodule Ultramoist.RealNetworkVerificationTest do
       )
 
     assert_receive {:message,
-                     %{
-                       "channel" => "clearinghouseState",
-                       "data" => %{
-                         "clearinghouseState" => %{
-                           "marginSummary" => %{"accountValue" => _},
-                           "time" => _
-                         }
-                       }
-                     }},
-                    20_000
+                    %{
+                      "channel" => "clearinghouseState",
+                      "data" => %{
+                        "clearinghouseState" => %{
+                          "marginSummary" => %{"accountValue" => _},
+                          "time" => _
+                        }
+                      }
+                    }},
+                   20_000
   end
 
   test "resolves a real HIP-3 builder-deployed asset (xyz:GOLD) alongside the native universe" do
@@ -263,6 +263,45 @@ defmodule Ultramoist.RealNetworkVerificationTest do
 
     assert candles == Enum.sort_by(candles, & &1.open_time, NaiveDateTime)
     assert {:ok, []} = Ultramoist.Candles.fetch("BTC", "1h", 0, 1000, base_url: base_url)
+  end
+
+  test "places a real trailing stop on Hyperliquid testnet, sees it among open orders as one, then cancels it" do
+    priv_key =
+      "ULTRAMOIST_TESTNET_PRIV_KEY"
+      |> System.fetch_env!()
+      |> String.trim_leading("0x")
+      |> Base.decode16!(case: :mixed)
+
+    user = "0x004afA659f84A08FC6A4FD3ad3Ad3fF49C13f25F"
+    base_url = Ultramoist.Config.info_url(:testnet)
+    {:ok, mids} = Ultramoist.Http.info_request(%{"type" => "allMids"}, base_url: base_url)
+    {btc_mid, _} = Float.parse(mids["BTC"])
+    {:ok, cache_pid} = Ultramoist.AssetCache.start_link(base_url: base_url)
+    opts = [priv_key: priv_key, source: Ultramoist.Signer.testnet_source(), base_url: base_url]
+
+    # Not reduce-only, so it can rest without a position; tracking only starts
+    # once BTC doubles, so it never fires.
+    assert {:ok, order_id} =
+             Ultramoist.Orders.Order.place_trailing_stop(
+               cache_pid,
+               "BTC",
+               false,
+               "0.001",
+               {:px, to_string(round(btc_mid * 0.05))},
+               opts ++ [reduce_only: false, activation_px: to_string(round(btc_mid * 2))]
+             )
+
+    {:ok, orders} = Ultramoist.Orders.fetch_open(user, base_url: base_url)
+
+    assert %Ultramoist.Orders.OpenOrder{order_type: "Trailing Stop Market", trigger_price: nil} =
+             Enum.find(orders, &(&1.order_id == order_id))
+
+    {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
+
+    assert :ok =
+             Ultramoist.Orders.Order.cancel(
+               opts ++ [asset_index: asset_index, order_id: order_id]
+             )
   end
 
   test "fetches a real wallet's HIP-3 dex-scoped open orders without erroring" do

@@ -11,7 +11,8 @@ defmodule Ultramoist.Orders.OpenOrder do
     :timestamp,
     :original_size,
     :client_id,
-    :trigger_price
+    :trigger_price,
+    :order_type
   ]
 
   def parse(order) do
@@ -25,9 +26,12 @@ defmodule Ultramoist.Orders.OpenOrder do
       timestamp: Ultramoist.Timestamp.parse(order["timestamp"]),
       original_size: Decimal.new(order["origSz"]),
       client_id: order["cloid"],
-      trigger_price: trigger_price(order)
+      trigger_price: trigger_price(order),
+      order_type: order["orderType"]
     }
   end
+
+  defp trigger_price(%{"orderType" => "Trailing Stop Market"}), do: nil
 
   defp trigger_price(%{"isTrigger" => true, "triggerPx" => trigger_px}) do
     Decimal.new(trigger_px)

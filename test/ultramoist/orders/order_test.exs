@@ -20,6 +20,26 @@ defmodule Ultramoist.Orders.OrderTest do
            ]
   end
 
+  test "builds a trailing stop action that retraces by a price distance, tracking from the start" do
+    assert Ultramoist.Orders.Order.build_trailing_stop_action(
+             0,
+             false,
+             "0.1",
+             true,
+             {:px, "250.5"},
+             nil
+           ) ==
+             [
+               type: "trailingStop",
+               asset: 0,
+               isBuy: false,
+               sz: "0.1",
+               reduceOnly: true,
+               retracement: [px: "250.5"],
+               activationPx: nil
+             ]
+  end
+
   # @spec ORD-DATA-001
   test "builds a GTC limit-order action from an asset index, side, price, and size" do
     assert Ultramoist.Orders.Order.build_place_action(0, true, "100.5", "0.1") == [
@@ -121,11 +141,13 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a batch request rejected before it reached order processing into a single overall error" do
     response = %{
       "status" => "err",
-      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" =>
+        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_batch_place_response(response) ==
-             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error,
+              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   # @spec ORD-DATA-002
@@ -174,11 +196,13 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a request rejected before it reached order processing into the exchange's rejection reason" do
     response = %{
       "status" => "err",
-      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" =>
+        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_place_response(response) ==
-             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error,
+              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   # @spec LEV-DATA-001
@@ -284,11 +308,13 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a batch cancel rejected before it reached order processing into a single overall error" do
     response = %{
       "status" => "err",
-      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" =>
+        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_batch_cancel_response(response) ==
-             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error,
+              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
@@ -372,6 +398,54 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == {:ok, 100}
+  end
+
+  test "places a reduce-only trailing stop for a known coin, formatting its size and price distance, and returns its order id" do
+    meta_stub = fn %{"type" => "meta"}, _opts ->
+      {:ok, %{"universe" => [%{"name" => "BTC", "szDecimals" => 5}]}}
+    end
+
+    {:ok, cache_pid} =
+      Ultramoist.AssetCache.start_link(
+        base_url: "unused",
+        http: {Ultramoist.FakeHttp, stub: meta_stub}
+      )
+
+    test_pid = self()
+
+    exchange_stub = fn action, _opts ->
+      send(test_pid, {:submitted, action})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "trailingStop", "data" => %{"oid" => 77_738_308}}
+       }}
+    end
+
+    priv_key = :crypto.hash(:sha256, "order test private key")
+
+    assert Ultramoist.Orders.Order.place_trailing_stop(
+             cache_pid,
+             "BTC",
+             false,
+             "0.0012345",
+             {:px, "250.123456"},
+             priv_key: priv_key,
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == {:ok, 77_738_308}
+
+    assert_received {:submitted,
+                     [
+                       type: "trailingStop",
+                       asset: 0,
+                       isBuy: false,
+                       sz: "0.00123",
+                       reduceOnly: true,
+                       retracement: [px: "250.1"],
+                       activationPx: nil
+                     ]}
   end
 
   # @spec ORD-API-005
