@@ -152,16 +152,16 @@ defmodule Ultramoist.RealNetworkVerificationTest do
       )
 
     assert_receive {:message,
-                    %{
-                      "channel" => "clearinghouseState",
-                      "data" => %{
-                        "clearinghouseState" => %{
-                          "marginSummary" => %{"accountValue" => _},
-                          "time" => _
-                        }
-                      }
-                    }},
-                   20_000
+                     %{
+                       "channel" => "clearinghouseState",
+                       "data" => %{
+                         "clearinghouseState" => %{
+                           "marginSummary" => %{"accountValue" => _},
+                           "time" => _
+                         }
+                       }
+                     }},
+                    20_000
   end
 
   test "resolves a real HIP-3 builder-deployed asset (xyz:GOLD) alongside the native universe" do
@@ -299,9 +299,7 @@ defmodule Ultramoist.RealNetworkVerificationTest do
     {:ok, %{asset_index: asset_index}} = Ultramoist.AssetCache.lookup(cache_pid, "BTC")
 
     assert :ok =
-             Ultramoist.Orders.Order.cancel(
-               opts ++ [asset_index: asset_index, order_id: order_id]
-             )
+             Ultramoist.Orders.Order.cancel(opts ++ [asset_index: asset_index, order_id: order_id])
   end
 
   test "fetches a real wallet's HIP-3 dex-scoped open orders without erroring" do

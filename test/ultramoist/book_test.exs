@@ -8,14 +8,9 @@ defmodule Ultramoist.BookTest do
       [%{"px" => "50001", "sz" => "1.2", "n" => 4}, %{"px" => "50002", "sz" => "0.8", "n" => 1}]
     ]
 
-    stub = fn %{"type" => "l2Book", "coin" => "BTC"}, _opts ->
-      {:ok, %{"levels" => raw_levels}}
-    end
+    stub = fn %{"type" => "l2Book", "coin" => "BTC"}, _opts -> {:ok, %{"levels" => raw_levels}} end
 
-    assert Ultramoist.Book.fetch("BTC",
-             base_url: "unused",
-             http: {Ultramoist.FakeHttp, stub: stub}
-           ) ==
+    assert Ultramoist.Book.fetch("BTC", base_url: "unused", http: {Ultramoist.FakeHttp, stub: stub}) ==
              {:ok,
               %{
                 bids: [
@@ -43,10 +38,7 @@ defmodule Ultramoist.BookTest do
   test "passes through an HTTP error instead of raising, e.g. a rate limit response" do
     stub = fn %{"type" => "l2Book", "coin" => "BTC"}, _opts -> {:error, {429, nil}} end
 
-    assert Ultramoist.Book.fetch("BTC",
-             base_url: "unused",
-             http: {Ultramoist.FakeHttp, stub: stub}
-           ) ==
+    assert Ultramoist.Book.fetch("BTC", base_url: "unused", http: {Ultramoist.FakeHttp, stub: stub}) ==
              {:error, {429, nil}}
   end
 end
