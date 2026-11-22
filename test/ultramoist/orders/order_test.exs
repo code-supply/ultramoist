@@ -141,13 +141,11 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a batch request rejected before it reached order processing into a single overall error" do
     response = %{
       "status" => "err",
-      "response" =>
-        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_batch_place_response(response) ==
-             {:error,
-              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   # @spec ORD-DATA-002
@@ -196,13 +194,11 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a request rejected before it reached order processing into the exchange's rejection reason" do
     response = %{
       "status" => "err",
-      "response" =>
-        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_place_response(response) ==
-             {:error,
-              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   # @spec LEV-DATA-001
@@ -308,13 +304,11 @@ defmodule Ultramoist.Orders.OrderTest do
   test "parses a batch cancel rejected before it reached order processing into a single overall error" do
     response = %{
       "status" => "err",
-      "response" =>
-        "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
+      "response" => "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."
     }
 
     assert Ultramoist.Orders.Order.parse_batch_cancel_response(response) ==
-             {:error,
-              "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
+             {:error, "User or API Wallet 0x1234567890123456789012345678901234567890 does not exist."}
   end
 
   test "truncates price to Hyperliquid's tick-size and significant-figure rules" do
