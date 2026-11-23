@@ -241,6 +241,15 @@ defmodule Ultramoist.Orders.OrderTest do
            ]
   end
 
+  # @spec ORD-DATA-023
+  test "marks a cancel action fast so the exchange prioritises it" do
+    assert Ultramoist.Orders.Order.build_cancel_action(0, 12345, fast: true) == [
+             type: "cancel",
+             cancels: [[a: 0, o: 12345]],
+             f: true
+           ]
+  end
+
   # @spec ORD-DATA-013
   test "builds a batch cancel action from multiple asset index and order id pairs" do
     cancels = [{0, 12345}, {1, 67890}]
@@ -248,6 +257,32 @@ defmodule Ultramoist.Orders.OrderTest do
     assert Ultramoist.Orders.Order.build_batch_cancel_action(cancels) == [
              type: "cancel",
              cancels: [[a: 0, o: 12345], [a: 1, o: 67890]]
+           ]
+  end
+
+  # @spec ORD-DATA-024
+  test "marks a batch cancel action fast so the exchange prioritises it" do
+    cancels = [{0, 12345}, {1, 67890}]
+
+    assert Ultramoist.Orders.Order.build_batch_cancel_action(cancels, fast: true) == [
+             type: "cancel",
+             cancels: [[a: 0, o: 12345], [a: 1, o: 67890]],
+             f: true
+           ]
+  end
+
+  # @spec ORD-DATA-025
+  test "leaves the fast flag out entirely for a cancel that isn't fast, as the exchange rejects f: false" do
+    cancels = [{0, 12345}, {1, 67890}]
+
+    assert Ultramoist.Orders.Order.build_batch_cancel_action(cancels, fast: false) == [
+             type: "cancel",
+             cancels: [[a: 0, o: 12345], [a: 1, o: 67890]]
+           ]
+
+    assert Ultramoist.Orders.Order.build_cancel_action(0, 12345, fast: false) == [
+             type: "cancel",
+             cancels: [[a: 0, o: 12345]]
            ]
   end
 
@@ -800,6 +835,60 @@ defmodule Ultramoist.Orders.OrderTest do
              source: Ultramoist.Signer.testnet_source(),
              http: {Ultramoist.FakeHttp, stub: exchange_stub}
            ) == :ok
+  end
+
+  # @spec ORD-API-011
+  test "submits a cancel marked fast when asked to" do
+    test_pid = self()
+
+    exchange_stub = fn action, opts ->
+      send(test_pid, {:submitted, action, opts})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success"]}}
+       }}
+    end
+
+    assert Ultramoist.Orders.Order.cancel(
+             asset_index: 0,
+             order_id: 99,
+             fast: true,
+             priv_key: :crypto.hash(:sha256, "order test private key"),
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == :ok
+
+    assert_received {:submitted, [type: "cancel", cancels: [[a: 0, o: 99]], f: true], opts}
+    refute Keyword.has_key?(opts, :fast)
+  end
+
+  # @spec ORD-API-012
+  test "submits a batch cancel marked fast when asked to" do
+    test_pid = self()
+
+    exchange_stub = fn action, opts ->
+      send(test_pid, {:submitted, action, opts})
+
+      {:ok,
+       %{
+         "status" => "ok",
+         "response" => %{"type" => "cancel", "data" => %{"statuses" => ["success", "success"]}}
+       }}
+    end
+
+    assert Ultramoist.Orders.Order.cancel_batch([{0, 98}, {1, 99}],
+             fast: true,
+             priv_key: :crypto.hash(:sha256, "order test private key"),
+             source: Ultramoist.Signer.testnet_source(),
+             http: {Ultramoist.FakeHttp, stub: exchange_stub}
+           ) == [:ok, :ok]
+
+    assert_received {:submitted,
+                     [type: "cancel", cancels: [[a: 0, o: 98], [a: 1, o: 99]], f: true], opts}
+
+    refute Keyword.has_key?(opts, :fast)
   end
 
   # @spec ORD-API-010

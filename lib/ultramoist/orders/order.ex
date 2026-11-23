@@ -132,16 +132,18 @@ defmodule Ultramoist.Orders.Order do
   end
 
   # @spec ORD-DATA-004
-  def build_cancel_action(asset_index, order_id) do
-    [type: "cancel", cancels: [[a: asset_index, o: order_id]]]
+  def build_cancel_action(asset_index, order_id, opts \\ []) do
+    build_batch_cancel_action([{asset_index, order_id}], opts)
   end
 
   # @spec ORD-DATA-013
-  def build_batch_cancel_action(cancels) do
-    [
+  def build_batch_cancel_action(cancels, opts \\ []) do
+    action = [
       type: "cancel",
       cancels: Enum.map(cancels, fn {asset_index, order_id} -> [a: asset_index, o: order_id] end)
     ]
+
+    if Keyword.get(opts, :fast), do: action ++ [f: true], else: action
   end
 
   # @spec ORD-DATA-005
@@ -358,8 +360,8 @@ defmodule Ultramoist.Orders.Order do
   def cancel(opts) do
     asset_index = Keyword.fetch!(opts, :asset_index)
     order_id = Keyword.fetch!(opts, :order_id)
-    action = build_cancel_action(asset_index, order_id)
-    http_opts = Keyword.drop(opts, [:asset_index, :order_id])
+    action = build_cancel_action(asset_index, order_id, Keyword.take(opts, [:fast]))
+    http_opts = Keyword.drop(opts, [:asset_index, :order_id, :fast])
 
     with {:ok, response} <- sign_and_submit(action, http_opts) do
       parse_cancel_response(response)
@@ -368,9 +370,9 @@ defmodule Ultramoist.Orders.Order do
 
   # @spec ORD-API-006
   def cancel_batch(cancels, opts) do
-    action = build_batch_cancel_action(cancels)
+    action = build_batch_cancel_action(cancels, Keyword.take(opts, [:fast]))
 
-    with {:ok, response} <- sign_and_submit(action, opts) do
+    with {:ok, response} <- sign_and_submit(action, Keyword.delete(opts, :fast)) do
       parse_batch_cancel_response(response)
     end
   end
